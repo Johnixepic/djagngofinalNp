@@ -1,0 +1,14 @@
+{% extends "notepad/base.html" %}
+{% block title %}Delete — {{ note.filename }}{% endblock %}
+{% block content %}
+<div class="confirm-box">
+    <h2>Delete Note</h2>
+    <p>Are you sure you want to delete <strong>{{ note.filename }}</strong>?</p>
+    <p class="meta">Format: {{ note.get_format_type_display }} &middot; Last modified: {{ note.updated_at|date:"M d, Y H:i" }}</p>
+    <form method="post" style="margin-top:1.5rem;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-delete">Yes, Delete</button>
+        <a href="{% url 'notepad:note_edit' note.pk %}" class="btn">Cancel</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environment
+.venv
+venv/
+ENV/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# SQLite development database
+db.sqlite3
+db.sqlite3-journal
+
+# Generated / temporary files
+*.log
+*.swp
+*~
+.DS_Store
+node_modules/
+test-results/
+
+# Static files (collected by Django)
+staticfiles/
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace

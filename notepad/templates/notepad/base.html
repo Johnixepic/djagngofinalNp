@@ -1,0 +1,52 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Notepad Clone{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'notepad/style.css' %}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Left sidebar: file list -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="{% url 'notepad:note_new' %}" class="btn-new">+ New Note</a>
+                <form method="get" action="{% url 'notepad:note_list' %}" class="search-form" accept-charset="utf-8">
+                    <input type="text" name="q" value="{{ q|default:'' }}" placeholder="Search notes..." class="search-input" autocomplete="off">
+                </form>
+            </div>
+            <ul class="file-list">
+                {% for note in notes %}
+                <li class="file-item{% if note.pk == current_note_pk %} active{% endif %}">
+                    <a href="{% url 'notepad:note_edit' note.pk %}" class="filename">
+                        {{ note.filename }}
+                    </a>
+                    <span class="format-badge">{{ note.format_type|upper }}</span>
+                </li>
+                {% empty %}
+                {% if q %}
+                <li class="empty-msg">No matching notes</li>
+                {% else %}
+                <li class="empty-msg">No notes yet. Create one!</li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        </aside>
+
+        <!-- Main editor area -->
+        <main class="editor-area">
+            {% if messages %}
+            <div class="messages">
+                {% for msg in messages %}
+                <div class="msg {{ msg.tags }}">{{ msg }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,295 @@
+{% extends "notepad/base.html" %}
+{% block title %}{{ note.filename|default:"Untitled" }} — Notepad{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <input type="text" name="title" id="title-input" value="{{ note.title|default:'Untitled' }}" 
+           placeholder="File name" class="title-input">
+    <select name="format_type" id="format-select">
+        <option value="txt" {% if note and note.format_type == "txt" %}selected{% endif %}>Plain Text</option>
+        <option value="md" {% if note and note.format_type == "md" %}selected{% endif %}>Markdown</option>
+    </select>
+    <button type="submit" name="action" value="save" class="btn btn-save">Save</button>
+    <button type="submit" name="action" value="saveas" class="btn btn-saveas">Save As</button>
+    {% if note %}
+    <a href="{% url 'notepad:note_download' note.pk %}" class="btn btn-download" title="Download note as {{ note.format_type|upper }}">Download</a>
+    {% endif %}
+    {% if note and note.format_type == "md" %}
+    <button type="button" id="preview-btn" class="btn btn-preview" title="Toggle preview pane">Preview</button>
+    {% endif %}
+    <span id="shortcut-hint" class="shortcut-hint"></span>
+</div>
+
+{% if form.errors %}
+<div class="form-errors">
+    <ul>
+    {% for field in form %}
+        {% for error in field.errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    {% endfor %}
+    {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+<form method="post" id="editor-form">
+    {% csrf_token %}
+    <input type="hidden" name="title" id="title-field" value="{{ note.title|default:'Untitled' }}">
+    <input type="hidden" name="format_type" id="format-field" value="{{ note.format_type|default:'txt' }}">
+    <input type="hidden" name="content" id="content-field" value="{{ note.content|default:'' }}">
+    <div class="editor-wrapper{% if note and note.format_type == "md" %} split-mode{% endif %}" id="editor-wrapper">
+        <textarea name="content" id="editor" rows="25" class="editor-textarea">{{ note.content|default:'' }}</textarea>
+        <div id="preview-pane" class="preview-pane{% if note and note.format_type == "md" %}{% else %} hidden{% endif %}"></div>
+    </div>
+</form>
+
+<!-- Save As modal -->
+<div id="saveas-modal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Save As</h3>
+        <input type="text" id="saveas-title" placeholder="New file name" class="title-input" style="width:100%;margin-bottom:1rem;">
+        <div class="modal-actions">
+            <button type="button" id="saveas-confirm" class="btn btn-save">Save As</button>
+            <button type="button" id="saveas-cancel" class="btn">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const editor = document.getElementById('editor');
+const contentField = document.getElementById('content-field');
+const titleField = document.getElementById('title-field');
+const formatField = document.getElementById('format-field');
+const titleInput = document.getElementById('title-input');
+const formatSelect = document.getElementById('format-select');
+const previewBtn = document.getElementById('preview-btn');
+const previewPane = document.getElementById('preview-pane');
+const editorWrapper = document.getElementById('editor-wrapper');
+const saveasModal = document.getElementById('saveas-modal');
+const saveasTitle = document.getElementById('saveas-title');
+let isPreviewHidden = false;
+
+// Sync controls -> hidden fields on input (for form submission)
+editor.addEventListener('input', () => {
+    contentField.value = editor.value;
+    titleField.value = titleInput.value;
+    formatField.value = formatSelect.value;
+    debouncedPreview();
+});
+titleInput.addEventListener('input', () => {
+    titleField.value = titleInput.value;
+});
+formatSelect.addEventListener('change', () => {
+    formatField.value = formatSelect.value;
+});
+
+// Debounce helper: delays execution until after user stops typing for `ms` ms
+function debounce(fn, ms) {
+    let timer = null;
+    return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), ms);
+    };
+}
+
+// Request sequence counter — discards stale responses from out-of-order completions
+let _previewSeq = 0;
+
+// Live preview: fetch sanitized HTML from backend and render in preview pane
+const debouncedPreview = debounce(async () => {
+    const content = editor.value;
+    if (!content) {
+        previewPane.innerHTML = '<div class="preview-content"></div>';
+        return;
+    }
+    const seq = ++_previewSeq;
+    try {
+        const resp = await fetch('{% url "notepad:markdown_preview_raw" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ content: content })
+        });
+        if (!resp.ok) throw new Error('Preview request failed');
+        const text = await resp.text();
+        // Discard if a newer request has already completed
+        if (seq !== _previewSeq) return;
+        // Extract the preview-content div from the response
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const previewDiv = doc.querySelector('.preview-content');
+        previewPane.innerHTML = previewDiv ? previewDiv.innerHTML : '';
+    } catch (e) {
+        if (seq !== _previewSeq) return;
+        previewPane.innerHTML = '<div class="preview-content"><p style="color:red">Preview error</p></div>';
+    }
+}, 300);
+
+// Toggle preview pane visibility (for when user wants editor-only view)
+if (previewBtn) {
+    previewBtn.addEventListener('click', () => {
+        if (isPreviewHidden) {
+            editorWrapper.classList.add('split-mode');
+            previewPane.classList.remove('hidden');
+            isPreviewHidden = false;
+            previewBtn.textContent = 'Preview';
+        } else {
+            editorWrapper.classList.remove('split-mode');
+            previewPane.classList.add('hidden');
+            isPreviewHidden = true;
+            previewBtn.textContent = 'Preview';
+        }
+    });
+}
+
+// Save As modal
+document.querySelectorAll('button[name="action"][value="saveas"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        saveasModal.classList.remove('hidden');
+        saveasTitle.value = '{{ note.title|default:"Untitled"|escapejs }}_copy';
+        saveasTitle.focus();
+    });
+});
+
+document.getElementById('saveas-cancel').addEventListener('click', () => {
+    saveasModal.classList.add('hidden');
+});
+
+document.getElementById('saveas-confirm').addEventListener('click', () => {
+    const form = document.getElementById('editor-form');
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action';
+    actionInput.value = 'saveas';
+    form.appendChild(actionInput);
+    
+    const titleInput2 = document.createElement('input');
+    titleInput2.type = 'hidden';
+    titleInput2.name = 'new_title';
+    titleInput2.value = saveasTitle.value;
+    form.appendChild(titleInput2);
+    
+    form.submit();
+});
+
+titleInput.addEventListener('blur', () => {
+    // title is submitted as part of the form naturally
+});
+
+// ── Unsaved-changes tracking ────────────────────────────────────────────────
+let isDirty = false;
+const initialTitle = titleInput.value;
+const initialContent = editor.value;
+
+function setDirty(flag) {
+    isDirty = flag;
+    if (isDirty) {
+        window.onbeforeunload = function(e) {
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            return e.returnValue;
+        };
+    } else {
+        window.onbeforeunload = null;
+    }
+}
+
+// Mark dirty when title or content changes
+titleInput.addEventListener('input', () => setDirty(true));
+editor.addEventListener('input', () => setDirty(true));
+
+// Clear dirty state before Save As form submission (intentional navigation)
+const saveAsConfirmBtn = document.getElementById('saveas-confirm');
+if (saveAsConfirmBtn) {
+    saveAsConfirmBtn.addEventListener('click', () => {
+        isDirty = false;
+    });
+}
+
+// Intercept in-app navigation links to warn about unsaved changes
+document.addEventListener('click', (e) => {
+    if (!isDirty) return;
+    const link = e.target.closest('a[href]');
+    if (!link) return;
+    const href = link.getAttribute('href');
+    // Only intercept same-site navigation links (not downloads, external, etc.)
+    if (href && href.startsWith('/') && !href.includes('download')) {
+        e.preventDefault();
+        // Navigate via window.location to trigger the standard beforeunload dialog
+        window.location.href = href;
+    }
+});
+// ── Keyboard shortcuts ───────────────────────────────────────────────────────
+let _isSaving = false;
+
+function _platformModifier() {
+    return /Mac|iPod|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const hint = document.getElementById('shortcut-hint');
+    if (hint) {
+        const mod = _platformModifier();
+        hint.textContent = `${mod}+S  save   ${mod}+Shift+S  save as`;
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    // Only act on Ctrl/Cmd — ignore when user is typing in the Save As modal input
+    const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+    const modPressed = isMac ? e.metaKey : e.ctrlKey;
+    if (!modPressed || e.altKey || e.shiftKey === undefined) return;
+
+    const target = e.target;
+    // Do not intercept when focus is inside the Save As modal (user is typing a name)
+    if (target && target.closest('#saveas-modal')) return;
+    // Do not interfere with text editing, copy/paste, selection in the editor itself
+    if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') && target.id !== 'saveas-title') {
+        // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z, Ctrl+Y inside the editor
+        const allowed = ['a','c','v','x','z','y'];
+        if (allowed.includes(e.key.toLowerCase())) return;
+    }
+
+    const key = e.key.toLowerCase();
+
+    // Ctrl+S / Cmd+S — Save
+    if (key === 's' && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (_isSaving) return;
+        _isSaving = true;
+        const btn = document.querySelector('button[name="action"][value="save"]');
+        if (btn) btn.click();
+        return;
+    }
+
+    // Ctrl+Shift+S / Cmd+Shift+S — Save As
+    if (key === 's' && e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        const saveasBtn = document.querySelector('button[name="action"][value="saveas"]');
+        if (saveasBtn) saveasBtn.click();
+        return;
+    }
+
+    // Escape — close Save As modal only if it's open
+    if (key === 'escape') {
+        const modal = document.getElementById('saveas-modal');
+        if (modal && !modal.classList.contains('hidden')) {
+            e.preventDefault();
+            e.stopPropagation();
+            modal.classList.add('hidden');
+        }
+    }
+});
+
+// Reset the saving flag after a short delay so rapid presses don't stack
+setInterval(() => { _isSaving = false; }, 600);
+</script>
+{% endblock %}

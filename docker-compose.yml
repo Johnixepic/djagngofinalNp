@@ -1,0 +1,47 @@
+services:
+
+  db:
+    image: postgres:17
+    container_name: notepad_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    container_name: notepad_api
+    user: "${UID}:${GID}"
+    ports:
+      - "8081:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      DB_HOST: "db"
+      DJANGO_DEBUG: "${DJANGO_DEBUG:-false}"
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY before starting Django in deployment}"
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,testserver}"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: notepad_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5051:80"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
