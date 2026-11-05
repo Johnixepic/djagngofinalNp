@@ -1,5 +1,15 @@
 {% extends "notepad/base.html" %}
-{% block title %}Notepad Clone — Notes{% endblock %}
+{% block title %}Notepad Clone — Notes
+<script nonce="{{ request.csp_nonce }}">
+document.querySelectorAll('.delete-form[data-confirm]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        if (!confirm(this.dataset.confirm)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}
 {% block content %}
 <div class="app-container">
     <!-- Left sidebar: file list -->
@@ -14,7 +24,7 @@
             {% for note in notes %}
             <li>
                 <a href="{% url 'notepad:note_edit' note.pk %}" class="filename">{{ note.filename }}</a>
-                <form method="post" action="{% url 'notepad:note_delete' note.pk %}" class="delete-form" onsubmit="return confirm('Delete {{ note.filename }}?');">
+                <form method="post" action="{% url 'notepad:note_delete' note.pk %}" class="delete-form" data-confirm="Delete {{ note.filename }}?">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-delete" title="Delete note">Delete</button>
                 </form>
@@ -32,7 +42,17 @@
             <h2>Select a note from the sidebar</h2>
             <p>Or create a new one with "+ New Note"</p>
         </div>
-        {% endblock %}
+        
+<script nonce="{{ request.csp_nonce }}">
+document.querySelectorAll('.delete-form[data-confirm]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        if (!confirm(this.dataset.confirm)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}
         
         {% if import_form %}
         <div class="import-feedback{% if import_form.errors %} has-error{% endif %}">
@@ -65,4 +85,14 @@
         </form>
     </main>
 </div>
+
+<script nonce="{{ request.csp_nonce }}">
+document.querySelectorAll('.delete-form[data-confirm]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        if (!confirm(this.dataset.confirm)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
 {% endblock %}

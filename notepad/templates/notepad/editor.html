@@ -49,7 +49,7 @@
 <div id="saveas-modal" class="modal hidden">
     <div class="modal-content">
         <h3>Save As</h3>
-        <input type="text" id="saveas-title" placeholder="New file name" class="title-input" style="width:100%;margin-bottom:1rem;">
+        <input type="text" id="saveas-title" placeholder="New file name" class="title-input modal-title-input">
         <div class="modal-actions">
             <button type="button" id="saveas-confirm" class="btn btn-save">Save As</button>
             <button type="button" id="saveas-cancel" class="btn">Cancel</button>
@@ -59,7 +59,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 const editor = document.getElementById('editor');
 const contentField = document.getElementById('content-field');
 const titleField = document.getElementById('title-field');

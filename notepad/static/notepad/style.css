@@ -347,3 +347,15 @@ select[name="format_type"] {
 .btn-download:hover {
     background: #138496;
 }
+
+/* Delete confirm wrapper */
+.delete-confirm-wrapper {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+/* Modal title input */
+.modal-title-input {
+    width: 100%;
+    margin-bottom: 1rem;
+}
