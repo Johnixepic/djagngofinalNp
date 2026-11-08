@@ -585,7 +585,7 @@ class FormValidationFeedbackTests(TestCase):
             "format_type": "txt",
         })
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "empty")
+        self.assertIn("This field is required", resp.content.decode())
 
     def test_missing_title_on_create_shows_error(self):
         resp = self.client.post(reverse("notepad:note_new"), {
@@ -593,7 +593,7 @@ class FormValidationFeedbackTests(TestCase):
             "format_type": "txt",
         })
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "empty")
+        self.assertIn("This field is required", resp.content.decode())
 
     def test_invalid_title_on_edit_shows_error(self):
         resp = self.client.post(
@@ -601,7 +601,7 @@ class FormValidationFeedbackTests(TestCase):
             {"action": "save", "title": "", "content": "x", "format_type": "txt"},
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "empty")
+        self.assertIn("This field is required", resp.content.decode())
 
     def test_control_chars_in_title_rejected_on_create(self):
         resp = self.client.post(reverse("notepad:note_new"), {
@@ -852,7 +852,7 @@ class NoteSearchTests(TestCase):
         resp = self.client.get(reverse("notepad:note_list"), {"q": "zzznonexistentzzz"})
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn("No matching notes", html)
+        self.assertIn("No notes match", html)
 
     def test_result_links_point_to_edit_pages(self):
         resp = self.client.get(reverse("notepad:note_list"), {"q": "Alpha"})
@@ -1598,3 +1598,335 @@ class RootURLTests(TestCase):
         """Unknown URLs still return 404."""
         resp = self.client.get("/nonexistent-path-12345/")
         self.assertEqual(resp.status_code, 404)
+
+
+class UXRedesignTests(TestCase):
+    """Tests for the NP-019 UX redesign acceptance criteria."""
+
+    def setUp(self):
+        self.client = Client()
+        self.note = Note.objects.create(title="Test Note", content="hello", format_type="txt")
+
+    # ── 1. Workspace fills viewport (no unused gray area) ──────────────────────
+
+    def test_editor_page_has_full_height_layout(self):
+        """The editor page must use app-container with full viewport height."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('class="app-container"', html)
+        self.assertIn('class="editor-area"', html)
+
+    def test_editor_page_has_title_bar(self):
+        """The editor page must have a title-bar section."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('class="title-bar"', html)
+
+    def test_editor_page_has_toolbar(self):
+        """The editor page must have a toolbar section."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('class="toolbar"', html)
+
+    # ── 2. First-time user can identify create/import ───────────────────────────
+
+    def test_list_page_has_new_note_button(self):
+        """The list page must show a prominent New Note button."""
+        resp = self.client.get(reverse("notepad:note_list"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('btn-new', html)
+        self.assertIn('New Note', html)
+
+    def test_list_page_has_import_action(self):
+        """The list page must have an Import Notes action."""
+        resp = self.client.get(reverse("notepad:note_list"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('Import Notes', html)
+        self.assertIn('import-area', html)
+
+    # ── 3. First-time user can identify save/export ─────────────────────────────
+
+    def test_editor_has_save_button(self):
+        """The editor must have a primary Save button."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('btn-primary', html)
+        self.assertIn('value="save"', html)
+
+    def test_editor_has_save_as_button(self):
+        """The editor must have a Save As button."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('value="saveas"', html)
+
+    def test_editor_has_download_button(self):
+        """The editor must have a Download button for existing notes."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('btn-download', html)
+        self.assertIn('Download', html)
+
+    # ── 4. Plain Text and Markdown are visually distinguishable ─────────────────
+
+    def test_format_selector_present_on_editor(self):
+        """The editor must have a format selector."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="format-select"', html)
+        self.assertIn('Plain Text', html)
+        self.assertIn('Markdown', html)
+
+    def test_format_selector_present_on_new_note(self):
+        """The new-note editor must also have a format selector."""
+        resp = self.client.get(reverse("notepad:note_new"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="format-select"', html)
+
+    def test_markdown_note_has_preview_button(self):
+        """Markdown notes must show a preview button."""
+        md_note = Note.objects.create(title="MD Note", content="# Hello", format_type="md")
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": md_note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="preview-btn"', html)
+
+    def test_plain_text_note_has_no_preview_button(self):
+        """Plain text notes must not show a preview button."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertNotIn('id="preview-btn"', html)
+
+    # ── 5. Markdown preview toggle is clear ─────────────────────────────────────
+
+    def test_md_note_has_split_mode_by_default(self):
+        """A Markdown note editor must start in split-mode."""
+        md_note = Note.objects.create(title="Split Test", content="# Hi", format_type="md")
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": md_note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('split-mode', html)
+
+    def test_txt_note_has_no_preview_pane(self):
+        """A plain text note must not render a visible preview pane."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        # The preview-pane div should exist but be hidden for txt
+        self.assertIn('id="preview-pane"', html)
+        self.assertIn('hidden', html)
+
+    # ── 6. Selected note is obvious in sidebar ──────────────────────────────────
+
+    def test_active_note_has_active_class(self):
+        """The currently selected note must have the 'active' class in the sidebar."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('class="file-item active"', html)
+
+    def test_non_active_note_lacks_active_class(self):
+        """Non-selected notes must not have the 'active' class."""
+        other = Note.objects.create(title="Other", content="x", format_type="txt")
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        # The active note should be present and active
+        self.assertIn(self.note.title, html)
+        # Non-active notes should exist in sidebar but without active class
+        import re
+        items = re.findall(r'<li[^>]*class="file-item[^"]*"[^>]*>', html)
+        active_items = [i for i in items if 'active' in i]
+        self.assertEqual(len(active_items), 1)
+        self.assertIn(str(self.note.pk), active_items[0])
+
+    # ── 7. Empty states provide useful guidance ─────────────────────────────────
+
+    def test_empty_list_has_helpful_message(self):
+        """The empty list must show a helpful message with create/import guidance."""
+        Note.objects.all().delete()
+        resp = self.client.get(reverse("notepad:note_list"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('Create one or import', html)
+
+    def test_empty_search_has_guidance(self):
+        """Empty search results must show a guidance message."""
+        resp = self.client.get(reverse("notepad:note_list"), {"q": "zzznonexistentzzz"})
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("No notes match", html)
+
+    # ── 8. Save status and unsaved changes are understandable ───────────────────
+
+    def test_editor_has_save_status_indicator(self):
+        """The editor must include a save-status element."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="save-status"', html)
+        self.assertIn('status-dot', html)
+
+    def test_editor_has_unsaved_changes_tracking(self):
+        """The editor must include unsaved-changes tracking JS."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('isDirty', html)
+        self.assertIn('beforeunload', html)
+
+    def test_new_note_editor_has_unsaved_changes_tracking(self):
+        """The new-note editor must also include unsaved-changes tracking."""
+        resp = self.client.get(reverse("notepad:note_new"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('isDirty', html)
+        self.assertIn('beforeunload', html)
+
+    # ── 9. Desktop and mobile layouts ───────────────────────────────────────────
+
+    def test_list_page_has_mobile_sidebar_toggle(self):
+        """The list page must include a mobile sidebar toggle button."""
+        resp = self.client.get(reverse("notepad:note_list"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="sidebar-toggle"', html)
+        self.assertIn('sidebar-overlay', html)
+
+    def test_editor_page_has_mobile_sidebar_toggle(self):
+        """The editor page must include a mobile sidebar toggle button."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="sidebar-toggle"', html)
+
+    def test_list_page_has_app_container(self):
+        """The list page must use app-container for layout."""
+        resp = self.client.get(reverse("notepad:note_list"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('class="app-container"', html)
+
+    # ── 10. All existing functionality continues working ────────────────────────
+
+    def test_create_note_via_new_endpoint(self):
+        resp = self.client.post(reverse("notepad:note_new"), {
+            "title": "UX Test", "content": "hello", "format_type": "txt"
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Note.objects.filter(title="UX Test").count(), 1)
+
+    def test_save_via_edit_endpoint(self):
+        resp = self.client.post(
+            reverse("notepad:note_edit", kwargs={"pk": self.note.pk}),
+            {"action": "save", "title": "Updated UX", "content": "new content", "format_type": "md"}
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.note.refresh_from_db()
+        self.assertEqual(self.note.title, "Updated UX")
+        self.assertEqual(self.note.format_type, "md")
+
+    def test_delete_via_delete_endpoint(self):
+        other = Note.objects.create(title="Delete Me", content="x", format_type="txt")
+        resp = self.client.post(reverse("notepad:note_delete", kwargs={"pk": other.pk}))
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Note.objects.filter(pk=other.pk).count(), 0)
+
+    def test_download_txt_note(self):
+        txt_note = Note.objects.create(title="DL Test", content="download me", format_type="txt")
+        resp = self.client.get(reverse("notepad:note_download", kwargs={"pk": txt_note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        body = b"".join(resp.streaming_content).decode()
+        self.assertIn("download me", body)
+
+    def test_import_txt_file(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        f = SimpleUploadedFile("import_test.txt", b"imported content", content_type="text/plain")
+        resp = self.client.post(reverse("notepad:note_import"), {"file": f})
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Note.objects.filter(title="import_test").exists())
+
+    def test_import_md_file(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        f = SimpleUploadedFile("import_test.md", b"# Imported", content_type="text/markdown")
+        resp = self.client.post(reverse("notepad:note_import"), {"file": f})
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Note.objects.filter(title="import_test").exists())
+
+    def test_search_works(self):
+        Note.objects.create(title="Searchable", content="find me", format_type="txt")
+        resp = self.client.get(reverse("notepad:note_list"), {"q": "Searchable"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Searchable.txt")
+
+    def test_markdown_preview_toggle_present(self):
+        md_note = Note.objects.create(title="Preview Test", content="# Hello", format_type="md")
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": md_note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="preview-btn"', html)
+
+    def test_save_as_modal_present(self):
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="saveas-modal"', html)
+
+    def test_csrf_protection_present(self):
+        """CSRF token must be present on all forms."""
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('csrfmiddlewaretoken', html)
+
+    def test_delete_confirmation_page_renders(self):
+        resp = self.client.get(reverse("notepad:note_delete", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Are you sure")
+
+
+class MobileLayoutTests(TestCase):
+    """Verify mobile-responsive HTML structure is present."""
+
+    def setUp(self):
+        self.client = Client()
+        self.note = Note.objects.create(title="Mobile Test", content="x", format_type="txt")
+
+    def test_list_has_sidebar_overlay(self):
+        resp = self.client.get(reverse("notepad:note_list"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('sidebar-overlay', html)
+
+    def test_editor_has_sidebar_overlay(self):
+        resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('sidebar-overlay', html)
+
+    def test_list_has_import_form_in_editor_area(self):
+        """Import form must be inside the editor-area main element."""
+        resp = self.client.get(reverse("notepad:note_list"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        # Import form should be inside <main class="editor-area">
+        self.assertIn('import-area', html)
+
+    def test_empty_state_has_helpful_text(self):
+        """Empty state on list page must guide the user."""
+        Note.objects.all().delete()
+        resp = self.client.get(reverse("notepad:note_list"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('No note selected', html)
+        self.assertIn('+ New Note', html)

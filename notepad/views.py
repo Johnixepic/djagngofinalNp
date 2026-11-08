@@ -29,7 +29,11 @@ def note_new(request):
             return redirect("notepad:note_list")
     else:
         form = NoteForm()
-    return render(request, "notepad/editor.html", {"form": form, "note": None})
+    notes = Note.objects.all()
+    return render(request, "notepad/editor.html", {
+        "form": form, "note": None, "current_note_pk": None,
+        "notes": notes,
+    })
 
 
 def _validate_saveas_title(raw_title: str) -> tuple[str | None, str | None]:
@@ -59,7 +63,7 @@ def note_edit(request, pk):
             if error:
                 messages.error(request, error)
                 form = NoteForm(instance=note)
-                return render(request, "notepad/editor.html", {"form": form, "note": note})
+                return render(request, "notepad/editor.html", {"form": form, "note": note, "current_note_pk": note.pk})
             Note.objects.create(
                 title=new_title,
                 content=note.content,
@@ -80,7 +84,12 @@ def note_edit(request, pk):
                     messages.error(request, err)
     else:
         form = NoteForm(instance=note)
-    return render(request, "notepad/editor.html", {"form": form, "note": note})
+    # Populate sidebar notes list for editor page
+    notes = Note.objects.all()
+    return render(request, "notepad/editor.html", {
+        "form": form, "note": note, "current_note_pk": note.pk,
+        "notes": notes,
+    })
 
 
 def note_delete(request, pk):

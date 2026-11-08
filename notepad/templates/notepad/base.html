@@ -8,34 +8,75 @@
     <link rel="stylesheet" href="{% static 'notepad/style.css' %}">
 </head>
 <body>
+    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">☰</button>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
     <div class="app-container">
-        <!-- Left sidebar: file list -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <a href="{% url 'notepad:note_new' %}" class="btn-new">+ New Note</a>
-                <form method="get" action="{% url 'notepad:note_list' %}" class="search-form" accept-charset="utf-8">
-                    <input type="text" name="q" value="{{ q|default:'' }}" placeholder="Search notes..." class="search-input" autocomplete="off">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <!-- App brand -->
+            <div class="sidebar-brand">
+                <div class="brand-icon">N</div>
+                <h1>Notepad</h1>
+            </div>
+
+            <!-- New Note action -->
+            <div class="sidebar-section">
+                <a href="{% url 'notepad:note_new' %}" class="btn-new">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
+                    New Note
+                </a>
+            </div>
+
+            <!-- Search -->
+            <div class="sidebar-section">
+                <form method="get" action="{% url 'notepad:note_list' %}" class="search-section">
+                    <span class="search-label">Search</span>
+                    <div class="search-input-wrap">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" name="q" value="{{ q|default:'' }}" placeholder="Search notes…" class="search-input" autocomplete="off">
+                    </div>
                 </form>
             </div>
+
+            <!-- Import action -->
+            <div class="import-section">
+                <a href="#import-area" class="btn-import-link" id="import-toggle">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                    Import Notes
+                </a>
+            </div>
+
+            <!-- Notes list -->
+            <div class="notes-section-label">Notes</div>
             <ul class="file-list">
                 {% for note in notes %}
-                <li class="file-item{% if note.pk == current_note_pk %} active{% endif %}">
-                    <a href="{% url 'notepad:note_edit' note.pk %}" class="filename">
+                <li class="file-item{% if note.pk == current_note_pk %} active{% endif %}" data-note-id="{{ note.pk }}">
+                    <a href="{% url 'notepad:note_edit' note.pk %}" class="filename" title="{{ note.title }}">
                         {{ note.filename }}
                     </a>
                     <span class="format-badge">{{ note.format_type|upper }}</span>
+                    <form method="post" action="{% url 'notepad:note_delete' note.pk %}" class="delete-form" data-confirm="Delete {{ note.filename }}?" style="display:none;">
+                        {% csrf_token %}
+                        <button type="submit" class="delete-btn" title="Delete note">✕</button>
+                    </form>
                 </li>
                 {% empty %}
                 {% if q %}
-                <li class="empty-msg">No matching notes</li>
+                <li class="empty-state-sidebar">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <p>No notes match<br>"<strong>{{ q }}</strong>"</p>
+                </li>
                 {% else %}
-                <li class="empty-msg">No notes yet. Create one!</li>
+                <li class="empty-state-sidebar">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <p>No notes yet.<br>Create one or import a file.</p>
+                </li>
                 {% endif %}
                 {% endfor %}
             </ul>
         </aside>
 
-        <!-- Main editor area -->
+        <!-- Main content area -->
         <main class="editor-area">
             {% if messages %}
             <div class="messages">
@@ -47,6 +88,25 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <script nonce="{{ request.csp_nonce }}">
+    // Mobile sidebar toggle
+    (function() {
+        const toggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (toggle && sidebar && overlay) {
+            toggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('visible');
+            });
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('visible');
+            });
+        }
+    })();
+    </script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

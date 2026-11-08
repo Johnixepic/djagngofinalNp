@@ -1,61 +1,11 @@
 {% extends "notepad/base.html" %}
-{% block title %}Notepad Clone — Notes
-<script nonce="{{ request.csp_nonce }}">
-document.querySelectorAll('.delete-form[data-confirm]').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        if (!confirm(this.dataset.confirm)) {
-            e.preventDefault();
-        }
-    });
-});
-</script>
-{% endblock %}
+{% block title %}Notepad — All Notes{% endblock %}
 {% block content %}
-<div class="app-container">
-    <!-- Left sidebar: file list -->
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <a href="{% url 'notepad:note_new' %}" class="btn-new">+ New Note</a>
-            <form method="get" action="{% url 'notepad:note_list' %}" class="search-form" accept-charset="utf-8">
-                <input type="text" name="q" value="{{ q }}" placeholder="Search notes..." class="search-input" autocomplete="off">
-            </form>
-        </div>
-        <ul class="file-list">
-            {% for note in notes %}
-            <li>
-                <a href="{% url 'notepad:note_edit' note.pk %}" class="filename">{{ note.filename }}</a>
-                <form method="post" action="{% url 'notepad:note_delete' note.pk %}" class="delete-form" data-confirm="Delete {{ note.filename }}?">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-delete" title="Delete note">Delete</button>
-                </form>
-            </li>
-            {% empty %}
-            <li class="empty-msg">No notes yet. Create one!</li>
-            {% endfor %}
-        </ul>
-    </aside>
-
-    <!-- Main editor area -->
-    <main class="editor-area">
-        {% block editor_content %}
-        <div class="empty-state">
-            <h2>Select a note from the sidebar</h2>
-            <p>Or create a new one with "+ New Note"</p>
-        </div>
-        
-<script nonce="{{ request.csp_nonce }}">
-document.querySelectorAll('.delete-form[data-confirm]').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        if (!confirm(this.dataset.confirm)) {
-            e.preventDefault();
-        }
-    });
-});
-</script>
-{% endblock %}
-        
-        {% if import_form %}
-        <div class="import-feedback{% if import_form.errors %} has-error{% endif %}">
+<!-- Import section at top of editor area -->
+<div class="import-section-editor" id="import-area">
+    <form method="post" action="{% url 'notepad:note_import' %}" enctype="multipart/form-data" class="import-form">
+        {% csrf_token %}
+        <div class="import-feedback{% if import_form and import_form.errors %} has-error{% endif %}">
             {% if import_form.errors %}
             <div class="form-errors">
                 <ul>
@@ -73,20 +23,37 @@ document.querySelectorAll('.delete-form[data-confirm]').forEach(form => {
             <p class="import-success">Import successful.</p>
             {% endif %}
         </div>
-        {% endif %}
-
-        <form method="post" action="{% url 'notepad:note_import' %}" enctype="multipart/form-data" class="import-form">
-            {% csrf_token %}
-            <div class="import-control">
-                <input type="file" name="file" accept=".txt,.md" class="import-input">
-                <button type="submit" class="btn btn-import">Import File</button>
-                <span class="import-hint">Accepted: .txt, .md (max 1 MiB)</span>
-            </div>
-        </form>
-    </main>
+        <input type="file" name="file" accept=".txt,.md" class="import-input">
+        <button type="submit" class="btn btn-import">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+            Import File
+        </button>
+        <span class="import-hint">.txt or .md · max 1 MiB</span>
+    </form>
 </div>
 
+{% block editor_content %}
+<div class="empty-state">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <h2>No note selected</h2>
+    <p>Select a note from the sidebar, or<br><strong>+ New Note</strong> to create one.</p>
+</div>
+{% endblock %}
+
 <script nonce="{{ request.csp_nonce }}">
+// Show delete buttons on hover for each file item
+document.querySelectorAll('.file-item').forEach(item => {
+    const form = item.querySelector('.delete-form');
+    if (!form) return;
+    item.addEventListener('mouseenter', () => {
+        form.style.display = 'flex';
+    });
+    item.addEventListener('mouseleave', () => {
+        form.style.display = 'none';
+    });
+});
+
+// Handle delete confirmation
 document.querySelectorAll('.delete-form[data-confirm]').forEach(form => {
     form.addEventListener('submit', function(e) {
         if (!confirm(this.dataset.confirm)) {

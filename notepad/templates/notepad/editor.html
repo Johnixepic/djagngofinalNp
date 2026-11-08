@@ -2,21 +2,39 @@
 {% block title %}{{ note.filename|default:"Untitled" }} — Notepad{% endblock %}
 
 {% block content %}
+<!-- Title bar -->
+<div class="title-bar">
+    <input type="text" name="title" id="title-input" value="{{ note.title|default:'Untitled' }}"
+           placeholder="File name…" class="title-input">
+    <div class="format-selector">
+        <span class="format-label">Format</span>
+        <select name="format_type" id="format-select">
+            <option value="txt" {% if note and note.format_type == "txt" %}selected{% endif %}>Plain Text</option>
+            <option value="md" {% if note and note.format_type == "md" %}selected{% endif %}>Markdown</option>
+        </select>
+    </div>
+</div>
+
+<!-- Toolbar -->
 <div class="toolbar">
-    <input type="text" name="title" id="title-input" value="{{ note.title|default:'Untitled' }}" 
-           placeholder="File name" class="title-input">
-    <select name="format_type" id="format-select">
-        <option value="txt" {% if note and note.format_type == "txt" %}selected{% endif %}>Plain Text</option>
-        <option value="md" {% if note and note.format_type == "md" %}selected{% endif %}>Markdown</option>
-    </select>
-    <button type="submit" name="action" value="save" class="btn btn-save">Save</button>
-    <button type="submit" name="action" value="saveas" class="btn btn-saveas">Save As</button>
+    <button type="submit" name="action" value="save" class="btn btn-primary" id="save-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save
+    </button>
+    <button type="submit" name="action" value="saveas" class="btn btn-secondary" id="saveas-btn">Save As</button>
     {% if note %}
-    <a href="{% url 'notepad:note_download' note.pk %}" class="btn btn-download" title="Download note as {{ note.format_type|upper }}">Download</a>
+    <a href="{% url 'notepad:note_download' note.pk %}" class="btn btn-download" title="Download note as {{ note.format_type|upper }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+    </a>
     {% endif %}
     {% if note and note.format_type == "md" %}
     <button type="button" id="preview-btn" class="btn btn-preview" title="Toggle preview pane">Preview</button>
     {% endif %}
+    <span id="save-status" class="save-status saved" title="">
+        <span class="status-dot"></span>
+        <span class="status-text">Saved</span>
+    </span>
     <span id="shortcut-hint" class="shortcut-hint"></span>
 </div>
 
@@ -29,18 +47,19 @@
         {% endfor %}
     {% endfor %}
     {% for error in form.non_field_errors %}
-        <li>{{ error }}</li>
+    <li>{{ error }}</li>
     {% endfor %}
     </ul>
 </div>
 {% endif %}
+
 <form method="post" id="editor-form">
     {% csrf_token %}
     <input type="hidden" name="title" id="title-field" value="{{ note.title|default:'Untitled' }}">
     <input type="hidden" name="format_type" id="format-field" value="{{ note.format_type|default:'txt' }}">
     <input type="hidden" name="content" id="content-field" value="{{ note.content|default:'' }}">
     <div class="editor-wrapper{% if note and note.format_type == "md" %} split-mode{% endif %}" id="editor-wrapper">
-        <textarea name="content" id="editor" rows="25" class="editor-textarea">{{ note.content|default:'' }}</textarea>
+        <textarea name="content" id="editor" class="editor-textarea" placeholder="Start writing your note…">{{ note.content|default:'' }}</textarea>
         <div id="preview-pane" class="preview-pane{% if note and note.format_type == "md" %}{% else %} hidden{% endif %}"></div>
     </div>
 </form>
@@ -49,10 +68,10 @@
 <div id="saveas-modal" class="modal hidden">
     <div class="modal-content">
         <h3>Save As</h3>
-        <input type="text" id="saveas-title" placeholder="New file name" class="title-input modal-title-input">
+        <input type="text" id="saveas-title" placeholder="New file name…" class="title-input modal-title-input">
         <div class="modal-actions">
-            <button type="button" id="saveas-confirm" class="btn btn-save">Save As</button>
-            <button type="button" id="saveas-cancel" class="btn">Cancel</button>
+            <button type="button" id="saveas-confirm" class="btn btn-primary">Save As</button>
+            <button type="button" id="saveas-cancel" class="btn btn-secondary">Cancel</button>
         </div>
     </div>
 </div>
@@ -71,9 +90,32 @@ const previewPane = document.getElementById('preview-pane');
 const editorWrapper = document.getElementById('editor-wrapper');
 const saveasModal = document.getElementById('saveas-modal');
 const saveasTitle = document.getElementById('saveas-title');
+const saveStatus = document.getElementById('save-status');
 let isPreviewHidden = false;
 
-// Sync controls -> hidden fields on input (for form submission)
+// ── Save status indicator ───────────────────────────────────────────────────
+function showSaving() {
+    if (!saveStatus) return;
+    saveStatus.className = 'save-status saving';
+    const txt = saveStatus.querySelector('.status-text');
+    if (txt) txt.textContent = 'Saving…';
+}
+
+function showSaved() {
+    if (!saveStatus) return;
+    saveStatus.className = 'save-status saved';
+    const txt = saveStatus.querySelector('.status-text');
+    if (txt) txt.textContent = 'Saved';
+}
+
+function showUnsaved() {
+    if (!saveStatus) return;
+    saveStatus.className = 'save-status unsaved';
+    const txt = saveStatus.querySelector('.status-text');
+    if (txt) txt.textContent = 'Unsaved changes';
+}
+
+// ── Sync controls -> hidden fields on input ───────────────────────────────────
 editor.addEventListener('input', () => {
     contentField.value = editor.value;
     titleField.value = titleInput.value;
@@ -87,7 +129,7 @@ formatSelect.addEventListener('change', () => {
     formatField.value = formatSelect.value;
 });
 
-// Debounce helper: delays execution until after user stops typing for `ms` ms
+// ── Debounce helper ───────────────────────────────────────────────────────────
 function debounce(fn, ms) {
     let timer = null;
     return function(...args) {
@@ -96,10 +138,10 @@ function debounce(fn, ms) {
     };
 }
 
-// Request sequence counter — discards stale responses from out-of-order completions
+// ── Request sequence counter — discards stale responses ──────────────────────
 let _previewSeq = 0;
 
-// Live preview: fetch sanitized HTML from backend and render in preview pane
+// ── Live preview ──────────────────────────────────────────────────────────────
 const debouncedPreview = debounce(async () => {
     const content = editor.value;
     if (!content) {
@@ -118,9 +160,7 @@ const debouncedPreview = debounce(async () => {
         });
         if (!resp.ok) throw new Error('Preview request failed');
         const text = await resp.text();
-        // Discard if a newer request has already completed
         if (seq !== _previewSeq) return;
-        // Extract the preview-content div from the response
         const parser = new DOMParser();
         const doc = parser.parseFromString(text, 'text/html');
         const previewDiv = doc.querySelector('.preview-content');
@@ -131,7 +171,7 @@ const debouncedPreview = debounce(async () => {
     }
 }, 300);
 
-// Toggle preview pane visibility (for when user wants editor-only view)
+// ── Toggle preview pane visibility ────────────────────────────────────────────
 if (previewBtn) {
     previewBtn.addEventListener('click', () => {
         if (isPreviewHidden) {
@@ -148,7 +188,14 @@ if (previewBtn) {
     });
 }
 
-// Save As modal
+// ── Save button: show saving state, then saved on redirect ─────────────────────
+document.querySelectorAll('button[name="action"][value="save"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        showSaving();
+    });
+});
+
+// ── Save As modal ─────────────────────────────────────────────────────────────
 document.querySelectorAll('button[name="action"][value="saveas"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -169,21 +216,18 @@ document.getElementById('saveas-confirm').addEventListener('click', () => {
     actionInput.name = 'action';
     actionInput.value = 'saveas';
     form.appendChild(actionInput);
-    
+
     const titleInput2 = document.createElement('input');
     titleInput2.type = 'hidden';
     titleInput2.name = 'new_title';
     titleInput2.value = saveasTitle.value;
     form.appendChild(titleInput2);
-    
+
+    showSaving();
     form.submit();
 });
 
-titleInput.addEventListener('blur', () => {
-    // title is submitted as part of the form naturally
-});
-
-// ── Unsaved-changes tracking ────────────────────────────────────────────────
+// ── Unsaved-changes tracking ──────────────────────────────────────────────────
 let isDirty = false;
 const initialTitle = titleInput.value;
 const initialContent = editor.value;
@@ -191,20 +235,20 @@ const initialContent = editor.value;
 function setDirty(flag) {
     isDirty = flag;
     if (isDirty) {
+        showUnsaved();
         window.onbeforeunload = function(e) {
             e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
             return e.returnValue;
         };
     } else {
+        showSaved();
         window.onbeforeunload = null;
     }
 }
 
-// Mark dirty when title or content changes
 titleInput.addEventListener('input', () => setDirty(true));
 editor.addEventListener('input', () => setDirty(true));
 
-// Clear dirty state before Save As form submission (intentional navigation)
 const saveAsConfirmBtn = document.getElementById('saveas-confirm');
 if (saveAsConfirmBtn) {
     saveAsConfirmBtn.addEventListener('click', () => {
@@ -212,20 +256,18 @@ if (saveAsConfirmBtn) {
     });
 }
 
-// Intercept in-app navigation links to warn about unsaved changes
 document.addEventListener('click', (e) => {
     if (!isDirty) return;
     const link = e.target.closest('a[href]');
     if (!link) return;
     const href = link.getAttribute('href');
-    // Only intercept same-site navigation links (not downloads, external, etc.)
     if (href && href.startsWith('/') && !href.includes('download')) {
         e.preventDefault();
-        // Navigate via window.location to trigger the standard beforeunload dialog
         window.location.href = href;
     }
 });
-// ── Keyboard shortcuts ───────────────────────────────────────────────────────
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
 let _isSaving = false;
 
 function _platformModifier() {
@@ -241,35 +283,30 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('keydown', (e) => {
-    // Only act on Ctrl/Cmd — ignore when user is typing in the Save As modal input
     const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
     const modPressed = isMac ? e.metaKey : e.ctrlKey;
     if (!modPressed || e.altKey || e.shiftKey === undefined) return;
 
     const target = e.target;
-    // Do not intercept when focus is inside the Save As modal (user is typing a name)
     if (target && target.closest('#saveas-modal')) return;
-    // Do not interfere with text editing, copy/paste, selection in the editor itself
     if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') && target.id !== 'saveas-title') {
-        // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z, Ctrl+Y inside the editor
         const allowed = ['a','c','v','x','z','y'];
         if (allowed.includes(e.key.toLowerCase())) return;
     }
 
     const key = e.key.toLowerCase();
 
-    // Ctrl+S / Cmd+S — Save
     if (key === 's' && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
         if (_isSaving) return;
         _isSaving = true;
+        showSaving();
         const btn = document.querySelector('button[name="action"][value="save"]');
         if (btn) btn.click();
         return;
     }
 
-    // Ctrl+Shift+S / Cmd+Shift+S — Save As
     if (key === 's' && e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
@@ -278,7 +315,6 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
-    // Escape — close Save As modal only if it's open
     if (key === 'escape') {
         const modal = document.getElementById('saveas-modal');
         if (modal && !modal.classList.contains('hidden')) {
@@ -289,7 +325,6 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Reset the saving flag after a short delay so rapid presses don't stack
 setInterval(() => { _isSaving = false; }, 600);
 </script>
 {% endblock %}
