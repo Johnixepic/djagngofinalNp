@@ -2083,3 +2083,25 @@ class NP020NavigationPolishTests(TestCase):
         self.assertContains(response, 'aria-controls="sidebar"')
         self.assertContains(response, 'aria-expanded="false"')
         self.assertContains(response, "event.key === 'Escape'")
+
+class NP020AccessibilityPolishTests(TestCase):
+    def test_note_delete_action_is_visible_and_has_accessible_name(self):
+        note = Note.objects.create(title="accessible-note", content="text", format_type="txt")
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertContains(response, 'class="delete-form"')
+        self.assertContains(response, f'aria-label="Delete {note.filename}"')
+        self.assertNotContains(response, 'class="delete-form" data-confirm="Delete accessible-note.txt?" style="display:none;"')
+
+    def test_save_as_dialog_exposes_dialog_semantics_and_keyboard_support(self):
+        note = Note.objects.create(title="dialog-note", content="text", format_type="txt")
+        response = self.client.get(reverse("notepad:note_edit", kwargs={"pk": note.pk}))
+        self.assertContains(response, 'role="dialog"')
+        self.assertContains(response, 'aria-modal="true"')
+        self.assertContains(response, 'aria-labelledby="saveas-heading"')
+        self.assertContains(response, "if (modalIsOpen && e.key === 'Escape')")
+        self.assertContains(response, "if (modalIsOpen && e.key === 'Tab')")
+
+    def test_format_change_marks_editor_as_unsaved(self):
+        note = Note.objects.create(title="format-note", content="text", format_type="txt")
+        response = self.client.get(reverse("notepad:note_edit", kwargs={"pk": note.pk}))
+        self.assertContains(response, "formatSelect.addEventListener('change', () => setDirty(true))")
