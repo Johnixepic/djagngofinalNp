@@ -4,24 +4,24 @@
 {% block content %}
 <!-- Title bar -->
 <div class="title-bar">
-    <input type="text" name="title" id="title-input" value="{{ note.title|default:'Untitled' }}"
+    <input type="text" name="title" id="title-input" value="{{ form.title.value|default_if_none:'Untitled' }}"
            placeholder="File name…" class="title-input">
     <div class="format-selector">
         <span class="format-label">Format</span>
         <select name="format_type" id="format-select">
-            <option value="txt" {% if note and note.format_type == "txt" %}selected{% endif %}>Plain Text</option>
-            <option value="md" {% if note and note.format_type == "md" %}selected{% endif %}>Markdown</option>
+            <option value="txt" {% if form.format_type.value == "txt" %}selected{% endif %}>Plain Text</option>
+            <option value="md" {% if form.format_type.value == "md" %}selected{% endif %}>Markdown</option>
         </select>
     </div>
 </div>
 
 <!-- Toolbar -->
 <div class="toolbar">
-    <button type="submit" name="action" value="save" class="btn btn-primary" id="save-btn">
+    <button type="submit" form="editor-form" name="action" value="save" class="btn btn-primary" id="save-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         Save
     </button>
-    <button type="submit" name="action" value="saveas" class="btn btn-secondary" id="saveas-btn">Save As</button>
+    {% if note %}<button type="button" name="action" value="saveas" class="btn btn-secondary" id="saveas-btn">Save As</button>{% endif %}
     {% if note %}
     <a href="{% url 'notepad:note_download' note.pk %}" class="btn btn-download" title="Download note as {{ note.format_type|upper }}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -55,11 +55,10 @@
 
 <form method="post" id="editor-form">
     {% csrf_token %}
-    <input type="hidden" name="title" id="title-field" value="{{ note.title|default:'Untitled' }}">
-    <input type="hidden" name="format_type" id="format-field" value="{{ note.format_type|default:'txt' }}">
-    <input type="hidden" name="content" id="content-field" value="{{ note.content|default:'' }}">
+    <input type="hidden" name="title" id="title-field" value="{{ form.title.value|default_if_none:'Untitled' }}">
+    <input type="hidden" name="format_type" id="format-field" value="{{ form.format_type.value|default_if_none:'txt' }}">
     <div class="editor-wrapper{% if note and note.format_type == "md" %} split-mode{% endif %}" id="editor-wrapper">
-        <textarea name="content" id="editor" class="editor-textarea" placeholder="Start writing your note…">{{ note.content|default:'' }}</textarea>
+        <textarea name="content" id="editor" class="editor-textarea" placeholder="Start writing your note…">{{ form.content.value|default_if_none:'' }}</textarea>
         <div id="preview-pane" class="preview-pane{% if note and note.format_type == "md" %}{% else %} hidden{% endif %}"></div>
     </div>
 </form>
@@ -80,7 +79,6 @@
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
 const editor = document.getElementById('editor');
-const contentField = document.getElementById('content-field');
 const titleField = document.getElementById('title-field');
 const formatField = document.getElementById('format-field');
 const titleInput = document.getElementById('title-input');
@@ -117,10 +115,15 @@ function showUnsaved() {
 
 // ── Sync controls -> hidden fields on input ───────────────────────────────────
 editor.addEventListener('input', () => {
-    contentField.value = editor.value;
     titleField.value = titleInput.value;
     formatField.value = formatSelect.value;
     debouncedPreview();
+});
+
+// Keep the external title/format controls synchronized before every submission.
+document.getElementById('editor-form').addEventListener('submit', () => {
+    titleField.value = titleInput.value;
+    formatField.value = formatSelect.value;
 });
 titleInput.addEventListener('input', () => {
     titleField.value = titleInput.value;
@@ -179,6 +182,8 @@ if (previewBtn) {
             previewPane.classList.remove('hidden');
             isPreviewHidden = false;
             previewBtn.textContent = 'Preview';
+            // Render immediately when the user opens the preview pane.
+            debouncedPreview();
         } else {
             editorWrapper.classList.remove('split-mode');
             previewPane.classList.add('hidden');
@@ -186,6 +191,12 @@ if (previewBtn) {
             previewBtn.textContent = 'Preview';
         }
     });
+}
+
+// Existing Markdown notes open in split mode. Populate the preview on page load;
+// otherwise the pane appears blank until the user edits the document.
+if (previewBtn && !isPreviewHidden) {
+    debouncedPreview();
 }
 
 // ── Save button: show saving state, then saved on redirect ─────────────────────
@@ -200,7 +211,7 @@ document.querySelectorAll('button[name="action"][value="saveas"]').forEach(btn =
     btn.addEventListener('click', (e) => {
         e.preventDefault();
         saveasModal.classList.remove('hidden');
-        saveasTitle.value = '{{ note.title|default:"Untitled"|escapejs }}_copy';
+        saveasTitle.value = `${titleInput.value}_copy`;
         saveasTitle.focus();
     });
 });
@@ -211,6 +222,8 @@ document.getElementById('saveas-cancel').addEventListener('click', () => {
 
 document.getElementById('saveas-confirm').addEventListener('click', () => {
     const form = document.getElementById('editor-form');
+    titleField.value = titleInput.value;
+    formatField.value = formatSelect.value;
     const actionInput = document.createElement('input');
     actionInput.type = 'hidden';
     actionInput.name = 'action';

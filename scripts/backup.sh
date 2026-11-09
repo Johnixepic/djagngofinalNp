@@ -1,48 +1,42 @@
 #!/usr/bin/env bash
-# Database Backup Script for Django Notepad
+# PostgreSQL custom-format backup for Django Notepad.
+# Run inside the web container (DB_HOST=db), or provide POSTGRES_HOST/POSTGRES_PORT.
 # Usage: ./scripts/backup.sh [backup_dir]
-# Creates a timestamped PostgreSQL dump
 
 set -euo pipefail
 
 BACKUP_DIR="${1:-$(pwd)/backups}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/notepad_backup_${TIMESTAMP}.sql.gz"
+BACKUP_FILE="${BACKUP_DIR}/notepad_backup_${TIMESTAMP}.dump"
 
-# Ensure backup directory exists
+DB_HOST="${POSTGRES_HOST:-${DB_HOST:-localhost}}"
+DB_PORT="${POSTGRES_PORT:-${DB_PORT:-5432}}"
+DB_NAME="${POSTGRES_DB:-}"
+DB_USER="${POSTGRES_USER:-}"
+DB_PASSWORD="${POSTGRES_PASSWORD:-}"
+
+for var_name in DB_NAME DB_USER; do
+    if [[ -z "${!var_name}" ]]; then
+        echo "ERROR: Set POSTGRES_DB and POSTGRES_USER in the environment." >&2
+        exit 1
+    fi
+done
+
 mkdir -p "${BACKUP_DIR}"
+echo "Creating PostgreSQL custom-format backup: ${BACKUP_FILE}"
+PGPASSWORD="${DB_PASSWORD}" pg_dump \
+    --host="${DB_HOST}" --port="${DB_PORT}" \
+    --username="${DB_USER}" --dbname="${DB_NAME}" \
+    --format=custom --file="${BACKUP_FILE}"
 
-# Check environment variables
-if [ -z "${POSTGRES_HOST:-}" ]; then
-    echo "ERROR: POSTGRES_HOST not set" >&2
+if [[ ! -s "${BACKUP_FILE}" ]]; then
+    echo "ERROR: Backup file was not created or is empty." >&2
     exit 1
 fi
 
-if [ -z "${POSTGRES_DB:-}" ]; then
-    echo "ERROR: POSTGRES_DB not set" >&2
-    exit 1
-fi
-
-if [ -z "${POSTGRES_USER:-}" ]; then
-    echo "ERROR: POSTGRES_USER not set" >&2
-    exit 1
-fi
-
-# Create backup using pg_dump
-echo "Creating backup: ${BACKUP_FILE}"
-PGPASSWORD="${POSTGRES_PASSWORD:-}" pg_dump     -h "${POSTGRES_HOST}"     -U "${POSTGRES_USER}"     -d "${POSTGRES_DB}"     -F c     -f "${BACKUP_FILE}" 2>/dev/null
-
-if [ -f "${BACKUP_FILE}" ]; then
-    SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
-    echo "Backup completed successfully"
-    echo "File: ${BACKUP_FILE}"
-    echo "Size: ${SIZE}"
-else
-    echo "ERROR: Backup failed" >&2
-    exit 1
-fi
-
-# List recent backups
-echo ""
+echo "Backup completed successfully."
+du -h "${BACKUP_FILE}"
+echo
 echo "Recent backups:"
-ls -lt "${BACKUP_DIR}"/notepad_backup_*.sql.gz 2>/dev/null | head -5
+find "${BACKUP_DIR}" -maxdepth 1 -type f -name 'notepad_backup_*.dump' -printf '%T@ %p\n' \
+    | sort -rn | head -5 | cut -d' ' -f2-
