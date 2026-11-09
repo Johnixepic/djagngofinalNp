@@ -55,7 +55,7 @@ python manage.py runserver
 
 ---
 
-## Docker Deployment (PostgreSQL)
+## Docker Development (PostgreSQL)\n\nThe Compose setup is intended for local development. It runs Django's development server; do not expose it as a production deployment. Use a production WSGI/ASGI server, secure proxy/TLS, production settings, and a separately managed database before deploying publicly.
 
 ### 1. Configure environment variables
 ```bash
@@ -267,10 +267,10 @@ See [BACKUP_GUIDE.md](BACKUP_GUIDE.md) for detailed procedures.
 ./scripts/backup.sh
 
 # List backups
-ls -lt backups/notepad_backup_*.sql.gz
+ls -lt backups/notepad_backup_*.dump
 
 # Restore (to same database)
-./scripts/recover.sh backups/notepad_backup_YYYYMMDD_HHMMSS.sql.gz
+./scripts/recover.sh backups/notepad_backup_YYYYMMDD_HHMMSS.dump
 ```
 
 ---
