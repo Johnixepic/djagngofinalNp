@@ -28,9 +28,7 @@
         Download
     </a>
     {% endif %}
-    {% if note and note.format_type == "md" %}
-    <button type="button" id="preview-btn" class="btn btn-preview" title="Toggle preview pane">Preview</button>
-    {% endif %}
+    <button type="button" id="preview-btn" class="btn btn-preview{% if not note or note.format_type != "md" %} hidden{% endif %}" title="Show or hide the Markdown preview" aria-pressed="{% if note and note.format_type == "md" %}true{% else %}false{% endif %}">{% if note and note.format_type == "md" %}Hide preview{% else %}Show preview{% endif %}</button>
     <span id="save-status" class="save-status saved" title="">
         <span class="status-dot"></span>
         <span class="status-text">Saved</span>
@@ -89,7 +87,7 @@ const editorWrapper = document.getElementById('editor-wrapper');
 const saveasModal = document.getElementById('saveas-modal');
 const saveasTitle = document.getElementById('saveas-title');
 const saveStatus = document.getElementById('save-status');
-let isPreviewHidden = false;
+let isPreviewHidden = formatSelect.value !== 'md';
 
 // ── Save status indicator ───────────────────────────────────────────────────
 function showSaving() {
@@ -130,6 +128,22 @@ titleInput.addEventListener('input', () => {
 });
 formatSelect.addEventListener('change', () => {
     formatField.value = formatSelect.value;
+    const isMarkdown = formatSelect.value === 'md';
+    previewBtn.classList.toggle('hidden', !isMarkdown);
+    if (isMarkdown) {
+        editorWrapper.classList.add('split-mode');
+        previewPane.classList.remove('hidden');
+        isPreviewHidden = false;
+        previewBtn.textContent = 'Hide preview';
+        previewBtn.setAttribute('aria-pressed', 'true');
+        debouncedPreview();
+    } else {
+        editorWrapper.classList.remove('split-mode');
+        previewPane.classList.add('hidden');
+        isPreviewHidden = true;
+        previewBtn.textContent = 'Show preview';
+        previewBtn.setAttribute('aria-pressed', 'false');
+    }
 });
 
 // ── Debounce helper ───────────────────────────────────────────────────────────
@@ -181,14 +195,16 @@ if (previewBtn) {
             editorWrapper.classList.add('split-mode');
             previewPane.classList.remove('hidden');
             isPreviewHidden = false;
-            previewBtn.textContent = 'Preview';
+            previewBtn.textContent = 'Hide preview';
+            previewBtn.setAttribute('aria-pressed', 'true');
             // Render immediately when the user opens the preview pane.
             debouncedPreview();
         } else {
             editorWrapper.classList.remove('split-mode');
             previewPane.classList.add('hidden');
             isPreviewHidden = true;
-            previewBtn.textContent = 'Preview';
+            previewBtn.textContent = 'Show preview';
+            previewBtn.setAttribute('aria-pressed', 'false');
         }
     });
 }
