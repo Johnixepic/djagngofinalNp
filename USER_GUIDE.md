@@ -113,7 +113,7 @@ Downloaded files contain raw content (not HTML previews).
 - Preview updates as you type (with slight delay)
 
 ### Toggling Preview
-Click the **Preview** button to hide or show the preview pane.
+Click **Show preview** or **Hide preview** to toggle the pane. When creating a new note, choose **Markdown** in the format selector to reveal the preview.
 
 ### Sanitization
 All Markdown output is sanitized to prevent XSS attacks. HTML tags in your Markdown are escaped.
