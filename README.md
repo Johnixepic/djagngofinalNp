@@ -15,7 +15,7 @@ A full-featured web-based notepad application built with Django.
 
 ## Technical Details
 
-- **Backend**: Django 4.x with SQLite (default) or PostgreSQL (Docker)
+- **Backend**: Django 6.1 with SQLite (local development) or PostgreSQL 17 (Docker)
 - **Frontend**: Vanilla JavaScript, CSS Grid/Flexbox
 - **Markdown**: Python `markdown` library with extensions (extra, codehilite, tables)
 - **Security**: XSS sanitization, CSRF protection, secure file handling
