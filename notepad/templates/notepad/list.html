@@ -38,8 +38,18 @@
 {% block editor_content %}
 <div class="empty-state">
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-    <h2>No note selected</h2>
-    <p>Select a note from the sidebar, or<br><strong>+ New Note</strong> to create one.</p>
+    {% if q %}
+    <h2>No notes found</h2>
+    <p>No notes matched “{{ q }}”. Try another search or clear the filter.</p>
+    <a class="btn btn-secondary empty-state-action" href="{% url 'notepad:note_list' %}">Clear search</a>
+    {% else %}
+    <h2>Ready for your next note?</h2>
+    <p>Create a note from scratch or import an existing TXT or Markdown file.</p>
+    <div class="empty-state-actions">
+        <a class="btn btn-primary" href="{% url 'notepad:note_new' %}">+ New Note</a>
+        <a class="btn btn-secondary" href="#import-area">Import a file</a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
