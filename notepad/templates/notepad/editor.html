@@ -182,6 +182,8 @@ if (previewBtn) {
             previewPane.classList.remove('hidden');
             isPreviewHidden = false;
             previewBtn.textContent = 'Preview';
+            // Render immediately when the user opens the preview pane.
+            debouncedPreview();
         } else {
             editorWrapper.classList.remove('split-mode');
             previewPane.classList.add('hidden');
@@ -189,6 +191,12 @@ if (previewBtn) {
             previewBtn.textContent = 'Preview';
         }
     });
+}
+
+// Existing Markdown notes open in split mode. Populate the preview on page load;
+// otherwise the pane appears blank until the user edits the document.
+if (previewBtn && !isPreviewHidden) {
+    debouncedPreview();
 }
 
 // ── Save button: show saving state, then saved on redirect ─────────────────────
