@@ -1930,3 +1930,69 @@ class MobileLayoutTests(TestCase):
         html = resp.content.decode()
         self.assertIn('No note selected', html)
         self.assertIn('+ New Note', html)
+
+class NP019CoreFunctionalityRegressionTests(TestCase):
+    """Regression coverage for editor submission and Save As fixes."""
+
+    def setUp(self):
+        self.note = Note.objects.create(
+            title="Original",
+            content="database version",
+            format_type="txt",
+        )
+        self.edit_url = reverse("notepad:note_edit", kwargs={"pk": self.note.pk})
+
+    def test_save_button_is_associated_with_editor_form(self):
+        response = self.client.get(self.edit_url)
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('id="editor-form"', html)
+        self.assertIn('form="editor-form" name="action" value="save"', html)
+
+    def test_save_as_copies_current_unsaved_editor_values(self):
+        response = self.client.post(self.edit_url, {
+            "action": "saveas",
+            "new_title": "Current Copy",
+            "title": "Unsaved title",
+            "content": "latest text from the editor",
+            "format_type": "md",
+        })
+        self.assertRedirects(response, reverse("notepad:note_list"))
+        copy = Note.objects.get(title="Current Copy")
+        self.assertEqual(copy.content, "latest text from the editor")
+        self.assertEqual(copy.format_type, "md")
+        self.note.refresh_from_db()
+        self.assertEqual(self.note.content, "database version")
+        self.assertEqual(self.note.title, "Original")
+
+    def test_save_as_invalid_title_preserves_editor_values_and_sidebar(self):
+        response = self.client.post(self.edit_url, {
+            "action": "saveas",
+            "new_title": "   ",
+            "title": "Edited title",
+            "content": "unsaved body",
+            "format_type": "md",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("notes", response.context)
+        self.assertContains(response, "Edited title")
+        self.assertContains(response, "unsaved body")
+        self.assertContains(response, 'id="sidebar"')
+        self.assertEqual(Note.objects.count(), 1)
+
+    def test_save_as_rejects_invalid_format_without_creating_copy(self):
+        response = self.client.post(self.edit_url, {
+            "action": "saveas",
+            "new_title": "Bad Format Copy",
+            "title": "Original",
+            "content": "text",
+            "format_type": "html",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Note.objects.count(), 1)
+
+    def test_import_navigation_targets_list_page_anchor(self):
+        response = self.client.get(self.edit_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="/notes/#import-area"')
+
