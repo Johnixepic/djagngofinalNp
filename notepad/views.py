@@ -124,20 +124,40 @@ def note_delete(request, pk):
     return render(request, "notepad/delete_confirm.html", {"note": note})
 
 
+def _available_import_title(title: str, format_type: str) -> tuple[str, bool]:
+    """Return a collision-free title without overwriting an existing note."""
+    candidate = title
+    suffix = 2
+    while Note.objects.filter(title__iexact=candidate, format_type=format_type).exists():
+        candidate = f"{title} ({suffix})"
+        suffix += 1
+    return candidate, candidate != title
+
+
 def note_import(request):
-    """Import a .txt or .md file into a new Note record."""
+    """Import a .txt or .md file and open the resulting note."""
     if request.method != "POST":
         return redirect("notepad:note_list")
 
     form = ImportForm(request.POST, request.FILES)
     if form.is_valid():
-        Note.objects.create(
-            title=form.derived_title,
+        title, renamed = _available_import_title(
+            form.derived_title, form.format_type
+        )
+        note = Note.objects.create(
+            title=title,
             content=form.decoded_content,
             format_type=form.format_type,
         )
-        messages.success(request, f"Imported: {form.derived_title}")
-        return redirect("notepad:note_list")
+        if renamed:
+            messages.success(
+                request,
+                f"Imported as {note.filename} because that filename already existed. "
+                "Your existing note was not changed.",
+            )
+        else:
+            messages.success(request, f"Imported and opened: {note.filename}")
+        return redirect("notepad:note_edit", pk=note.pk)
     else:
         # Re-render the list page with errors so user can see what went wrong
         q = request.GET.get("q", "").strip()
