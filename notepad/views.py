@@ -75,7 +75,7 @@ def note_edit(request, pk):
 
             copy_form = NoteForm({
                 "title": new_title,
-                "content": request.POST.get("content", ""),
+                "content": request.POST.get("content", note.content),
                 "format_type": request.POST.get("format_type", note.format_type),
             })
             if not copy_form.is_valid():
