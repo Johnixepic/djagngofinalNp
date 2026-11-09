@@ -15,6 +15,8 @@ A full-featured web-based notepad application built with Django.
 
 ## Technical Details
 
+- **Usage scope**: Single-user app; it does not include login or account isolation. Keep it on a trusted network unless authentication and authorization are added.
+
 - **Backend**: Django 6.1 with SQLite (local development) or PostgreSQL 17 (Docker)
 - **Frontend**: Vanilla JavaScript, CSS Grid/Flexbox
 - **Markdown**: Python `markdown` library with extensions (extra, codehilite, tables)
@@ -30,7 +32,7 @@ FinalProj/
 │   ├── views.py     # View logic
 │   ├── urls.py      # URL routing
 │   ├── forms.py     # Forms (including Save As)
-│   ├── tests.py     # Test suite (145+ tests)
+│   ├── tests.py     # Django regression test suite
 │   └── templates/   # HTML templates
 ├── static/          # CSS and JS assets
 ├── docker-compose.yml  # Docker deployment
