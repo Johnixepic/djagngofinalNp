@@ -1759,7 +1759,8 @@ class UXRedesignTests(TestCase):
         resp = self.client.get(reverse("notepad:note_list"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn('Create one or import', html)
+        self.assertIn('Ready for your next note?', html)
+        self.assertIn('Import a file', html)
 
     def test_empty_search_has_guidance(self):
         """Empty search results must show a guidance message."""
@@ -1929,8 +1930,9 @@ class MobileLayoutTests(TestCase):
         resp = self.client.get(reverse("notepad:note_list"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn('No note selected', html)
+        self.assertIn('Ready for your next note?', html)
         self.assertIn('+ New Note', html)
+        self.assertIn('Import a file', html)
 
 class NP019CoreFunctionalityRegressionTests(TestCase):
     """Regression coverage for editor submission and Save As fixes."""
@@ -2067,3 +2069,17 @@ class NP020ReleaseReadinessTests(TestCase):
         self.assertContains(response, "formatSelect.addEventListener('change'")
         self.assertContains(response, "previewBtn.classList.toggle('hidden', !isMarkdown)")
         self.assertContains(response, "debouncedPreview()")
+
+
+class NP020NavigationPolishTests(TestCase):
+    def test_empty_search_offers_clear_search_action(self):
+        response = self.client.get(reverse("notepad:note_list"), {"q": "missing-note"})
+        self.assertContains(response, "No notes found")
+        self.assertContains(response, "Clear search")
+        self.assertContains(response, 'href="/notes/"')
+
+    def test_mobile_navigation_exposes_accessible_state(self):
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertContains(response, 'aria-controls="sidebar"')
+        self.assertContains(response, 'aria-expanded="false"')
+        self.assertContains(response, "event.key === 'Escape'")
