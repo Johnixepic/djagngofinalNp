@@ -131,15 +131,16 @@ docker compose logs -f db    # PostgreSQL logs
 3. Confirm deletion in the modal dialog
 
 ### Searching
-1. Use the search box in the sidebar
-2. Searches title and content (case-insensitive)
-3. Results update as you type
+1. Use the search box in the sidebar and submit your query.
+2. Search checks titles and content using case-insensitive partial matching.
+3. If no notes match, use **Clear search** in the empty state to return to all notes.
 
 ### Importing Files
-1. Click **+ New Note**
-2. In the editor, use the import control
-3. Select TXT or MD file
-4. File content loads into the editor
+1. Open **Import Notes** in the sidebar or choose **Import a file** on the empty notes screen.
+2. Select a `.txt` or `.md` file. The picker displays its filename and size.
+3. Click **Import note**. The server accepts files up to 1 MiB and rejects unsupported or binary files.
+4. The imported note is saved and opens automatically.
+5. If a note with the same filename and format already exists, a numbered copy is created (for example, `meeting (2).md`). The original note is not overwritten.
 
 ### Downloading Notes
 1. Open any note
@@ -147,8 +148,9 @@ docker compose logs -f db    # PostgreSQL logs
 3. File saves with correct extension (`.txt` or `.md`)
 
 ### Markdown Preview
-- Live preview shows on the right side for MD notes
-- Toggle preview with the **Preview** button
+- Existing Markdown notes open with a live preview on the right.
+- On a new note, select **Markdown** to reveal the preview control.
+- Toggle the pane with **Show preview** / **Hide preview**.
 - Sanitized HTML prevents XSS attacks
 
 ### Keyboard Shortcuts
