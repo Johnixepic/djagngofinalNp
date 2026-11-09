@@ -945,3 +945,32 @@ select[name="format_type"]:focus {
     .import-actions { align-items: flex-start; flex-direction: column; }
     .import-hint { max-width: 100%; }
 }
+
+.empty-state-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+.empty-state-action { margin-top: 16px; }
+.empty-state .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #181825;
+}
+.empty-state .btn-secondary {
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--fg);
+}
+.empty-state .btn-secondary:hover {
+    background: var(--sidebar-active);
+}
+.sidebar-toggle:focus-visible,
+.import-file-picker:focus-visible,
+.file-item a:focus-visible,
+.empty-state a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
