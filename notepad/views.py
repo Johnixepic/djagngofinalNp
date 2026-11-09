@@ -57,18 +57,40 @@ def note_edit(request, pk):
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "saveas":
+            # Save As must copy the current editor values, not the stale database
+            # instance. The editor submits title/content/format_type with the action.
             new_title, error = _validate_saveas_title(
                 request.POST.get("new_title", f"{note.title}_copy")
             )
+            notes = Note.objects.all()
             if error:
                 messages.error(request, error)
-                form = NoteForm(instance=note)
-                return render(request, "notepad/editor.html", {"form": form, "note": note, "current_note_pk": note.pk})
-            Note.objects.create(
-                title=new_title,
-                content=note.content,
-                format_type=note.format_type,
-            )
+                form = NoteForm(request.POST, instance=note)
+                return render(request, "notepad/editor.html", {
+                    "form": form,
+                    "note": note,
+                    "current_note_pk": note.pk,
+                    "notes": notes,
+                })
+
+            copy_form = NoteForm({
+                "title": new_title,
+                "content": request.POST.get("content", ""),
+                "format_type": request.POST.get("format_type", note.format_type),
+            })
+            if not copy_form.is_valid():
+                for field_errors in copy_form.errors.values():
+                    for error_message in field_errors:
+                        messages.error(request, error_message)
+                form = NoteForm(request.POST, instance=note)
+                return render(request, "notepad/editor.html", {
+                    "form": form,
+                    "note": note,
+                    "current_note_pk": note.pk,
+                    "notes": notes,
+                })
+
+            copy_form.save()
             messages.success(request, f"Saved as: {new_title}")
             return redirect("notepad:note_list")
         else:
