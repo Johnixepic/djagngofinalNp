@@ -62,10 +62,11 @@
 </form>
 
 <!-- Save As modal -->
-<div id="saveas-modal" class="modal hidden">
+<div id="saveas-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="saveas-heading" aria-hidden="true">
     <div class="modal-content">
-        <h3>Save As</h3>
-        <input type="text" id="saveas-title" placeholder="New file name…" class="title-input modal-title-input">
+        <h3 id="saveas-heading">Save As</h3>
+        <label for="saveas-title" class="sr-only">New file name</label>
+        <input type="text" id="saveas-title" placeholder="New file name…" class="title-input modal-title-input" maxlength="255" required>
         <div class="modal-actions">
             <button type="button" id="saveas-confirm" class="btn btn-primary">Save As</button>
             <button type="button" id="saveas-cancel" class="btn btn-secondary">Cancel</button>
@@ -227,13 +228,25 @@ document.querySelectorAll('button[name="action"][value="saveas"]').forEach(btn =
     btn.addEventListener('click', (e) => {
         e.preventDefault();
         saveasModal.classList.remove('hidden');
+        saveasModal.setAttribute('aria-hidden', 'false');
+        saveasReturnFocus = btn;
         saveasTitle.value = `${titleInput.value}_copy`;
         saveasTitle.focus();
     });
 });
 
-document.getElementById('saveas-cancel').addEventListener('click', () => {
+function closeSaveAsModal() {
     saveasModal.classList.add('hidden');
+    saveasModal.setAttribute('aria-hidden', 'true');
+    if (saveasReturnFocus) saveasReturnFocus.focus();
+}
+let saveasReturnFocus = null;
+document.getElementById('saveas-cancel').addEventListener('click', closeSaveAsModal);
+saveasTitle.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        document.getElementById('saveas-confirm').click();
+    }
 });
 
 document.getElementById('saveas-confirm').addEventListener('click', () => {
@@ -277,6 +290,7 @@ function setDirty(flag) {
 
 titleInput.addEventListener('input', () => setDirty(true));
 editor.addEventListener('input', () => setDirty(true));
+formatSelect.addEventListener('change', () => setDirty(true));
 
 const saveAsConfirmBtn = document.getElementById('saveas-confirm');
 if (saveAsConfirmBtn) {
@@ -349,7 +363,7 @@ document.addEventListener('keydown', (e) => {
         if (modal && !modal.classList.contains('hidden')) {
             e.preventDefault();
             e.stopPropagation();
-            modal.classList.add('hidden');
+            closeSaveAsModal();
         }
     }
 });
