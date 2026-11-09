@@ -6,12 +6,12 @@ A full-featured web-based notepad application built with Django.
 
 - **Create, edit, and delete notes** — Plain text (TXT) and Markdown (MD) formats
 - **Live Markdown preview** — Split-pane editor with real-time HTML rendering
-- **File import/export** — Import TXT/MD files, download notes as raw content
-- **Search** — Filter notes by title
+- **File import/export** — Import TXT/MD files (up to 1 MiB), safely create numbered copies for duplicate names, and download notes as raw content
+- **Search** — Find notes by title and content
 - **Save As** — Duplicate notes with a new name
 - **Keyboard shortcuts** — Quick access to common actions
 - **Unsaved changes tracking** — Warning when leaving with unsaved edits
-- **Responsive design** — Works on mobile and desktop viewports
+- **Responsive design** — Accessible mobile navigation and desktop layouts
 
 ## Technical Details
 
@@ -49,8 +49,9 @@ FinalProj/
 
 ## Testing
 
-- **Unit tests**: `python manage.py test notepad`
-- **E2E browser tests**: `node browser_test.js` (requires dev server running)
+- **Unit tests**: `python manage.py test notepad -v 2`
+- **E2E browser tests**: `node browser_test.js` (requires the app to be running on the configured test URL)
+- **Deployment checks**: `python manage.py check --deploy` with production environment variables configured
 
 ## NP Reports
 
