@@ -123,6 +123,11 @@ editor.addEventListener('input', () => {
 document.getElementById('editor-form').addEventListener('submit', () => {
     titleField.value = titleInput.value;
     formatField.value = formatSelect.value;
+    // A deliberate save is not navigation away from unsaved work. Clear the
+    // unload guard before the browser submits the form.
+    isDirty = false;
+    window.onbeforeunload = null;
+    showSaving();
 });
 titleInput.addEventListener('input', () => {
     titleField.value = titleInput.value;
@@ -296,6 +301,7 @@ const saveAsConfirmBtn = document.getElementById('saveas-confirm');
 if (saveAsConfirmBtn) {
     saveAsConfirmBtn.addEventListener('click', () => {
         isDirty = false;
+        window.onbeforeunload = null;
     });
 }
 
