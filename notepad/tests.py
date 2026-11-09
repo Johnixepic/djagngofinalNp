@@ -597,7 +597,8 @@ class FormValidationFeedbackTests(TestCase):
 
     def test_invalid_title_on_edit_shows_error(self):
         resp = self.client.post(
-            reverse("notepad:note_edit", kwargs={"pk": self.note.pk}),            {"action": "save", "title": "", "content": "x", "format_type": "txt"},
+            reverse("notepad:note_edit", kwargs={"pk": self.note.pk}),
+            {"action": "save", "title": "", "content": "x", "format_type": "txt"},
         )
         self.assertEqual(resp.status_code, 200)
         self.assertIn("This field is required", resp.content.decode())
@@ -1196,7 +1197,8 @@ class ExportTests(TestCase):
         resp = self.client.get(reverse("notepad:note_download", kwargs={"pk": self.txt_note.pk}))
         self.assertEqual(resp.status_code, 200)
         self.txt_note.refresh_from_db()
-        self.assertEqual(self.txt_note.content, "Hello world")        self.assertEqual(self.txt_note.updated_at, updated_before)
+        self.assertEqual(self.txt_note.content, "Hello world")
+        self.assertEqual(self.txt_note.updated_at, updated_before)
 
     def test_unsafe_title_characters_safe_in_filename(self):
         """Path separators and dangerous chars in title are sanitized."""
@@ -1795,7 +1797,8 @@ class UXRedesignTests(TestCase):
 
     # ── 9. Desktop and mobile layouts ───────────────────────────────────────────
 
-    def test_list_page_has_mobile_sidebar_toggle(self):        """The list page must include a mobile sidebar toggle button."""
+    def test_list_page_has_mobile_sidebar_toggle(self):
+        """The list page must include a mobile sidebar toggle button."""
         resp = self.client.get(reverse("notepad:note_list"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
