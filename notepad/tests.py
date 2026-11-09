@@ -348,7 +348,11 @@ class CRUDStabilityTests(TestCase):
             reverse("notepad:note_edit", kwargs={"pk": self.note.pk}),
             {"action": "save", "title": "Updated", "content": "new content", "format_type": "md"},
         )
-        self.assertEqual(resp.status_code, 302)
+        self.assertRedirects(
+            resp,
+            reverse("notepad:note_edit", kwargs={"pk": self.note.pk}),
+            fetch_redirect_response=False,
+        )
         self.note.refresh_from_db()
         self.assertEqual(self.note.title, "Updated")
         self.assertEqual(self.note.content, "new content")
