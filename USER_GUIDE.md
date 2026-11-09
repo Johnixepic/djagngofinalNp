@@ -6,11 +6,11 @@ A simple, powerful note-taking application for plain text and Markdown documents
 
 ## Getting Started
 
-### First Login
+### First Open
 
-1. Open http://localhost:8000 (or your deployment URL)
-2. You'll see an empty notes list with a **+ New Note** button
-3. Click the button to create your first note
+1. Open the app URL provided by whoever runs the app.
+2. The notes screen opens directly; no login is currently required.
+3. Choose **+ New Note** or import an existing file.
 
 ---
 
