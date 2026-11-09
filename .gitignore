@@ -34,3 +34,12 @@ staticfiles/
 .vscode/
 *.sublime-project
 *.sublime-workspace
+
+.env
+db.sqlite3
+.venv/
+node_modules/
+staticfiles/
+test-results/
+__pycache__/
+*.py[cod]
