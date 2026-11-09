@@ -14,7 +14,7 @@ A full-featured web-based notepad application supporting plain text (TXT) and Ma
 - Python 3.11+
 - pip (Python package manager)
 
-### Docker Deployment (PostgreSQL)
+### Docker Development (PostgreSQL)\n\nThe Compose setup is intended for local development. It runs Django's development server; do not expose it as a production deployment. Use a production WSGI/ASGI server, secure proxy/TLS, production settings, and a separately managed database before deploying publicly.
 - Docker Desktop or Docker Engine
 - Docker Compose v2+
 
