@@ -597,8 +597,7 @@ class FormValidationFeedbackTests(TestCase):
 
     def test_invalid_title_on_edit_shows_error(self):
         resp = self.client.post(
-            reverse("notepad:note_edit", kwargs={"pk": self.note.pk}),
-            {"action": "save", "title": "", "content": "x", "format_type": "txt"},
+            reverse("notepad:note_edit", kwargs={"pk": self.note.pk}),            {"action": "save", "title": "", "content": "x", "format_type": "txt"},
         )
         self.assertEqual(resp.status_code, 200)
         self.assertIn("This field is required", resp.content.decode())
@@ -1197,8 +1196,7 @@ class ExportTests(TestCase):
         resp = self.client.get(reverse("notepad:note_download", kwargs={"pk": self.txt_note.pk}))
         self.assertEqual(resp.status_code, 200)
         self.txt_note.refresh_from_db()
-        self.assertEqual(self.txt_note.content, "Hello world")
-        self.assertEqual(self.txt_note.updated_at, updated_before)
+        self.assertEqual(self.txt_note.content, "Hello world")        self.assertEqual(self.txt_note.updated_at, updated_before)
 
     def test_unsafe_title_characters_safe_in_filename(self):
         """Path separators and dangerous chars in title are sanitized."""
@@ -1255,7 +1253,7 @@ class ImportExportIntegrationTests(TestCase):
         resp = self.client.get(reverse("notepad:note_list"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'name="file"')
-        self.assertContains(resp, "Import File")
+        self.assertContains(resp, "Import Notes")
 
     def test_download_button_on_editor(self):
         """Download button is present on the editor page."""
@@ -1404,7 +1402,7 @@ class KeyboardShortcutTests(TestCase):
         resp = self.client.get(reverse("notepad:note_new"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn("key === 'escape'", html)
+        self.assertIn("e.key === 'Escape'", html)
 
     def test_existing_note_editor_contains_shortcut_hint(self):
         """An existing note editor must also render the shortcut hint."""
@@ -1797,8 +1795,7 @@ class UXRedesignTests(TestCase):
 
     # ── 9. Desktop and mobile layouts ───────────────────────────────────────────
 
-    def test_list_page_has_mobile_sidebar_toggle(self):
-        """The list page must include a mobile sidebar toggle button."""
+    def test_list_page_has_mobile_sidebar_toggle(self):        """The list page must include a mobile sidebar toggle button."""
         resp = self.client.get(reverse("notepad:note_list"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
@@ -2020,17 +2017,18 @@ class NP020ReleaseReadinessTests(TestCase):
         original = Note.objects.create(
             title="meeting", content="do not overwrite", format_type="md"
         )
-        response = self.client.post(self.import_url, {"file": self.upload()})
+        response = self.client.post(
+            self.import_url, {"file": self.upload()}, follow=True
+        )
         imported = Note.objects.get(title="meeting (2)", format_type="md")
         self.assertEqual(original.content, "do not overwrite")
         self.assertEqual(imported.content, "# Meeting notes")
-        self.assertRedirects(
-            response, reverse("notepad:note_edit", kwargs={"pk": imported.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.request["PATH_INFO"],
+            reverse("notepad:note_edit", kwargs={"pk": imported.pk}),
         )
-        self.assertContains(
-            self.client.get(reverse("notepad:note_edit", kwargs={"pk": imported.pk})),
-            "Imported as meeting (2).md",
-        )
+        self.assertContains(response, "Imported as meeting (2).md")
 
     def test_second_duplicate_import_uses_next_available_suffix(self):
         Note.objects.create(title="meeting", content="one", format_type="md")
