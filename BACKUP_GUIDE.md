@@ -41,7 +41,7 @@ docker compose exec web python manage.py shell -c \
 After verification, remove the disposable database only when you are certain it is the test database:
 
 ```bash
-docker compose exec web dropdb --host=db --username="$POSTGRES_USER" notepad_verify
+docker compose exec web sh -c 'dropdb --host=db --username="$POSTGRES_USER" notepad_verify'
 ```
 
 To restore to the configured application database, pass its exact name as the target. This can replace existing database objects and should only be done after confirming a separate current backup exists.
