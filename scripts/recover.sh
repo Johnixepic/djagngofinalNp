@@ -44,6 +44,6 @@ fi
 echo "Restoring into ${TARGET_DB}..."
 pg_restore --host="${DB_HOST}" --port="${DB_PORT}" \
     --username="${DB_USER}" --dbname="${TARGET_DB}" \
-    --clean --if-exists --no-owner --no-privileges "${BACKUP_FILE}"
+    --clean --if-exists --exit-on-error --no-owner --no-privileges "${BACKUP_FILE}"
 
 echo "Restore completed. Verify the application and data before using this database."
