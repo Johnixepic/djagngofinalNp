@@ -1700,12 +1700,13 @@ class UXRedesignTests(TestCase):
         html = resp.content.decode()
         self.assertIn('id="preview-btn"', html)
 
-    def test_plain_text_note_has_no_preview_button(self):
-        """Plain text notes must not show a preview button."""
+    def test_plain_text_note_preview_button_starts_hidden(self):
+        """Plain text notes keep preview available for switching to Markdown, but hidden."""
         resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertNotIn('id="preview-btn"', html)
+        self.assertIn('id="preview-btn"', html)
+        self.assertRegex(html, r'id="preview-btn"[^>]*class="[^"]*hidden')
 
     # ── 5. Markdown preview toggle is clear ─────────────────────────────────────
 
@@ -1996,3 +1997,73 @@ class NP019CoreFunctionalityRegressionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/notes/#import-area"')
 
+
+
+class NP020ReleaseReadinessTests(TestCase):
+    def setUp(self):
+        self.import_url = reverse("notepad:note_import")
+
+    def upload(self, name="meeting.md", content=b"# Meeting notes"):
+        return SimpleUploadedFile(name, content, content_type="text/markdown")
+
+    def test_successful_import_redirects_directly_to_new_note(self):
+        response = self.client.post(self.import_url, {"file": self.upload()})
+        note = Note.objects.get(title="meeting", format_type="md")
+        self.assertRedirects(
+            response, reverse("notepad:note_edit", kwargs={"pk": note.pk})
+        )
+        self.assertEqual(note.content, "# Meeting notes")
+
+    def test_duplicate_import_gets_numbered_title_and_preserves_existing_note(self):
+        original = Note.objects.create(
+            title="meeting", content="do not overwrite", format_type="md"
+        )
+        response = self.client.post(self.import_url, {"file": self.upload()})
+        imported = Note.objects.get(title="meeting (2)", format_type="md")
+        self.assertEqual(original.content, "do not overwrite")
+        self.assertEqual(imported.content, "# Meeting notes")
+        self.assertRedirects(
+            response, reverse("notepad:note_edit", kwargs={"pk": imported.pk})
+        )
+        self.assertContains(
+            self.client.get(reverse("notepad:note_edit", kwargs={"pk": imported.pk})),
+            "Imported as meeting (2).md",
+        )
+
+    def test_second_duplicate_import_uses_next_available_suffix(self):
+        Note.objects.create(title="meeting", content="one", format_type="md")
+        Note.objects.create(title="meeting (2)", content="two", format_type="md")
+        self.client.post(self.import_url, {"file": self.upload()})
+        self.assertTrue(Note.objects.filter(title="meeting (3)", format_type="md").exists())
+
+    def test_import_page_does_not_show_success_before_an_import(self):
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertNotContains(response, "Import successful.")
+
+    def test_import_page_explains_supported_types_and_size(self):
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertContains(response, "TXT or MD")
+        self.assertContains(response, "Maximum 1 MiB")
+        self.assertContains(response, 'id="import-file"')
+        self.assertContains(response, 'id="import-submit"')
+
+    def test_import_error_is_visible_without_success_message(self):
+        bad_file = SimpleUploadedFile("archive.pdf", b"%PDF-1.4", content_type="application/pdf")
+        response = self.client.post(self.import_url, {"file": bad_file})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Only .txt and .md files are accepted")
+        self.assertNotContains(response, "Import successful.")
+
+    def test_new_note_preview_control_is_present_but_hidden_for_txt(self):
+        response = self.client.get(reverse("notepad:note_new"))
+        self.assertContains(response, 'id="preview-btn"')
+        self.assertRegex(
+            response.content.decode(),
+            r'id="preview-btn"[^>]*class="[^"]*hidden',
+        )
+
+    def test_editor_switches_preview_when_markdown_is_selected(self):
+        response = self.client.get(reverse("notepad:note_new"))
+        self.assertContains(response, "formatSelect.addEventListener('change'")
+        self.assertContains(response, "previewBtn.classList.toggle('hidden', !isMarkdown)")
+        self.assertContains(response, "debouncedPreview()")
