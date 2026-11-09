@@ -99,7 +99,8 @@ def note_edit(request, pk):
             if form.is_valid():
                 form.save()
                 messages.success(request, f"Saved: {note.filename}")
-                return redirect("notepad:note_list")
+                # Return to the same editor so the user can continue working.
+                return redirect("notepad:note_edit", pk=note.pk)
             # Form has errors — re-render with messages
             for field in form.errors:
                 for err in form.errors[field]:
