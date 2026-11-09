@@ -326,9 +326,32 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('saveas-modal');
+    const modalIsOpen = modal && !modal.classList.contains('hidden');
+    if (modalIsOpen && e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeSaveAsModal();
+        return;
+    }
+    if (modalIsOpen && e.key === 'Tab') {
+        const focusable = Array.from(modal.querySelectorAll('input:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'));
+        if (focusable.length) {
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    }
+
     const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
     const modPressed = isMac ? e.metaKey : e.ctrlKey;
-    if (!modPressed || e.altKey || e.shiftKey === undefined) return;
+    if (!modPressed || e.altKey) return;
 
     const target = e.target;
     if (target && target.closest('#saveas-modal')) return;
@@ -358,14 +381,6 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
-    if (key === 'escape') {
-        const modal = document.getElementById('saveas-modal');
-        if (modal && !modal.classList.contains('hidden')) {
-            e.preventDefault();
-            e.stopPropagation();
-            closeSaveAsModal();
-        }
-    }
 });
 
 setInterval(() => { _isSaving = false; }, 600);
