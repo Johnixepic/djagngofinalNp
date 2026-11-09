@@ -275,10 +275,13 @@ body {
     white-space: nowrap;
 }
 
-.file-item:hover .delete-btn { display: flex; }
+.delete-form {
+    display: flex;
+    flex-shrink: 0;
+}
 
 .delete-btn {
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
     width: 24px;
@@ -292,7 +295,9 @@ body {
     font-size: 14px;
 }
 
-.delete-btn:hover { background: rgba(243, 139, 168, 0.15); }
+.delete-btn:hover,
+.delete-btn:focus-visible { background: rgba(243, 139, 168, 0.15); }
+.delete-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .format-badge {
     font-size: 10px;
