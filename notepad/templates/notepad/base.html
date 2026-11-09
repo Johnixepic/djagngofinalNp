@@ -55,9 +55,9 @@
                         {{ note.filename }}
                     </a>
                     <span class="format-badge">{{ note.format_type|upper }}</span>
-                    <form method="post" action="{% url 'notepad:note_delete' note.pk %}" class="delete-form" data-confirm="Delete {{ note.filename }}?" style="display:none;">
+                    <form method="post" action="{% url 'notepad:note_delete' note.pk %}" class="delete-form" data-confirm="Delete {{ note.filename }}?">
                         {% csrf_token %}
-                        <button type="submit" class="delete-btn" title="Delete note">✕</button>
+                        <button type="submit" class="delete-btn" title="Delete {{ note.filename }}" aria-label="Delete {{ note.filename }}">✕</button>
                     </form>
                 </li>
                 {% empty %}
