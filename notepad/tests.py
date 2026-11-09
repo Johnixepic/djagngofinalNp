@@ -1700,12 +1700,13 @@ class UXRedesignTests(TestCase):
         html = resp.content.decode()
         self.assertIn('id="preview-btn"', html)
 
-    def test_plain_text_note_has_no_preview_button(self):
-        """Plain text notes must not show a preview button."""
+    def test_plain_text_note_preview_button_starts_hidden(self):
+        """Plain text notes keep preview available for switching to Markdown, but hidden."""
         resp = self.client.get(reverse("notepad:note_edit", kwargs={"pk": self.note.pk}))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertNotIn('id="preview-btn"', html)
+        self.assertIn('id="preview-btn"', html)
+        self.assertRegex(html, r'id="preview-btn"[^>]*class="[^"]*hidden')
 
     # ── 5. Markdown preview toggle is clear ─────────────────────────────────────
 
@@ -1758,7 +1759,8 @@ class UXRedesignTests(TestCase):
         resp = self.client.get(reverse("notepad:note_list"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn('Create one or import', html)
+        self.assertIn('Ready for your next note?', html)
+        self.assertIn('Import a file', html)
 
     def test_empty_search_has_guidance(self):
         """Empty search results must show a guidance message."""
@@ -1928,8 +1930,9 @@ class MobileLayoutTests(TestCase):
         resp = self.client.get(reverse("notepad:note_list"))
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn('No note selected', html)
+        self.assertIn('Ready for your next note?', html)
         self.assertIn('+ New Note', html)
+        self.assertIn('Import a file', html)
 
 class NP019CoreFunctionalityRegressionTests(TestCase):
     """Regression coverage for editor submission and Save As fixes."""
@@ -1996,3 +1999,109 @@ class NP019CoreFunctionalityRegressionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/notes/#import-area"')
 
+
+
+class NP020ReleaseReadinessTests(TestCase):
+    def setUp(self):
+        self.import_url = reverse("notepad:note_import")
+
+    def upload(self, name="meeting.md", content=b"# Meeting notes"):
+        return SimpleUploadedFile(name, content, content_type="text/markdown")
+
+    def test_successful_import_redirects_directly_to_new_note(self):
+        response = self.client.post(self.import_url, {"file": self.upload()})
+        note = Note.objects.get(title="meeting", format_type="md")
+        self.assertRedirects(
+            response, reverse("notepad:note_edit", kwargs={"pk": note.pk})
+        )
+        self.assertEqual(note.content, "# Meeting notes")
+
+    def test_duplicate_import_gets_numbered_title_and_preserves_existing_note(self):
+        original = Note.objects.create(
+            title="meeting", content="do not overwrite", format_type="md"
+        )
+        response = self.client.post(self.import_url, {"file": self.upload()})
+        imported = Note.objects.get(title="meeting (2)", format_type="md")
+        self.assertEqual(original.content, "do not overwrite")
+        self.assertEqual(imported.content, "# Meeting notes")
+        self.assertRedirects(
+            response, reverse("notepad:note_edit", kwargs={"pk": imported.pk})
+        )
+        self.assertContains(
+            self.client.get(reverse("notepad:note_edit", kwargs={"pk": imported.pk})),
+            "Imported as meeting (2).md",
+        )
+
+    def test_second_duplicate_import_uses_next_available_suffix(self):
+        Note.objects.create(title="meeting", content="one", format_type="md")
+        Note.objects.create(title="meeting (2)", content="two", format_type="md")
+        self.client.post(self.import_url, {"file": self.upload()})
+        self.assertTrue(Note.objects.filter(title="meeting (3)", format_type="md").exists())
+
+    def test_import_page_does_not_show_success_before_an_import(self):
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertNotContains(response, "Import successful.")
+
+    def test_import_page_explains_supported_types_and_size(self):
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertContains(response, "TXT or MD")
+        self.assertContains(response, "Maximum 1 MiB")
+        self.assertContains(response, 'id="import-file"')
+        self.assertContains(response, 'id="import-submit"')
+
+    def test_import_error_is_visible_without_success_message(self):
+        bad_file = SimpleUploadedFile("archive.pdf", b"%PDF-1.4", content_type="application/pdf")
+        response = self.client.post(self.import_url, {"file": bad_file})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Only .txt and .md files are accepted")
+        self.assertNotContains(response, "Import successful.")
+
+    def test_new_note_preview_control_is_present_but_hidden_for_txt(self):
+        response = self.client.get(reverse("notepad:note_new"))
+        self.assertContains(response, 'id="preview-btn"')
+        self.assertRegex(
+            response.content.decode(),
+            r'id="preview-btn"[^>]*class="[^"]*hidden',
+        )
+
+    def test_editor_switches_preview_when_markdown_is_selected(self):
+        response = self.client.get(reverse("notepad:note_new"))
+        self.assertContains(response, "formatSelect.addEventListener('change'")
+        self.assertContains(response, "previewBtn.classList.toggle('hidden', !isMarkdown)")
+        self.assertContains(response, "debouncedPreview()")
+
+
+class NP020NavigationPolishTests(TestCase):
+    def test_empty_search_offers_clear_search_action(self):
+        response = self.client.get(reverse("notepad:note_list"), {"q": "missing-note"})
+        self.assertContains(response, "No notes found")
+        self.assertContains(response, "Clear search")
+        self.assertContains(response, 'href="/notes/"')
+
+    def test_mobile_navigation_exposes_accessible_state(self):
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertContains(response, 'aria-controls="sidebar"')
+        self.assertContains(response, 'aria-expanded="false"')
+        self.assertContains(response, "event.key === 'Escape'")
+
+class NP020AccessibilityPolishTests(TestCase):
+    def test_note_delete_action_is_visible_and_has_accessible_name(self):
+        note = Note.objects.create(title="accessible-note", content="text", format_type="txt")
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertContains(response, 'class="delete-form"')
+        self.assertContains(response, f'aria-label="Delete {note.filename}"')
+        self.assertNotContains(response, 'class="delete-form" data-confirm="Delete accessible-note.txt?" style="display:none;"')
+
+    def test_save_as_dialog_exposes_dialog_semantics_and_keyboard_support(self):
+        note = Note.objects.create(title="dialog-note", content="text", format_type="txt")
+        response = self.client.get(reverse("notepad:note_edit", kwargs={"pk": note.pk}))
+        self.assertContains(response, 'role="dialog"')
+        self.assertContains(response, 'aria-modal="true"')
+        self.assertContains(response, 'aria-labelledby="saveas-heading"')
+        self.assertContains(response, "if (modalIsOpen && e.key === 'Escape')")
+        self.assertContains(response, "if (modalIsOpen && e.key === 'Tab')")
+
+    def test_format_change_marks_editor_as_unsaved(self):
+        note = Note.objects.create(title="format-note", content="text", format_type="txt")
+        response = self.client.get(reverse("notepad:note_edit", kwargs={"pk": note.pk}))
+        self.assertContains(response, "formatSelect.addEventListener('change', () => setDirty(true))")

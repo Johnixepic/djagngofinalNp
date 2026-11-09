@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{% static 'notepad/style.css' %}">
 </head>
 <body>
-    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">☰</button>
+    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
     <div class="app-container">
         <!-- Sidebar -->
@@ -55,9 +55,9 @@
                         {{ note.filename }}
                     </a>
                     <span class="format-badge">{{ note.format_type|upper }}</span>
-                    <form method="post" action="{% url 'notepad:note_delete' note.pk %}" class="delete-form" data-confirm="Delete {{ note.filename }}?" style="display:none;">
+                    <form method="post" action="{% url 'notepad:note_delete' note.pk %}" class="delete-form" data-confirm="Delete {{ note.filename }}?">
                         {% csrf_token %}
-                        <button type="submit" class="delete-btn" title="Delete note">✕</button>
+                        <button type="submit" class="delete-btn" title="Delete {{ note.filename }}" aria-label="Delete {{ note.filename }}">✕</button>
                     </form>
                 </li>
                 {% empty %}
@@ -90,21 +90,33 @@
     </div>
 
     <script nonce="{{ request.csp_nonce }}">
-    // Mobile sidebar toggle
+    // Mobile sidebar navigation: keep state accessible and close after navigation.
     (function() {
         const toggle = document.getElementById('sidebar-toggle');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
-        if (toggle && sidebar && overlay) {
-            toggle.addEventListener('click', () => {
-                sidebar.classList.toggle('open');
-                overlay.classList.toggle('visible');
-            });
-            overlay.addEventListener('click', () => {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('visible');
-            });
+        if (!toggle || !sidebar || !overlay) return;
+
+        function setOpen(open) {
+            sidebar.classList.toggle('open', open);
+            overlay.classList.toggle('visible', open);
+            toggle.setAttribute('aria-expanded', String(open));
+            toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
         }
+
+        toggle.addEventListener('click', () => {
+            setOpen(!sidebar.classList.contains('open'));
+        });
+        overlay.addEventListener('click', () => setOpen(false));
+        sidebar.querySelectorAll('a[href]').forEach(link => {
+            link.addEventListener('click', () => setOpen(false));
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && sidebar.classList.contains('open')) {
+                setOpen(false);
+                toggle.focus();
+            }
+        });
     })();
     </script>
 {% block extra_js %}{% endblock %}
