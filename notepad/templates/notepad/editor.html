@@ -4,7 +4,7 @@
 {% block content %}
 <!-- Title bar -->
 <div class="title-bar">
-    <input type="text" name="title" id="title-input" value="{{ form.title.value|default:note.title|default:'Untitled' }}"
+    <input type="text" name="title" id="title-input" value="{{ form.title.value|default_if_none:'Untitled' }}"
            placeholder="File name…" class="title-input">
     <div class="format-selector">
         <span class="format-label">Format</span>
@@ -55,10 +55,10 @@
 
 <form method="post" id="editor-form">
     {% csrf_token %}
-    <input type="hidden" name="title" id="title-field" value="{{ note.title|default:'Untitled' }}">
-    <input type="hidden" name="format_type" id="format-field" value="{{ form.format_type.value|default:note.format_type|default:'txt' }}">
+    <input type="hidden" name="title" id="title-field" value="{{ form.title.value|default_if_none:'Untitled' }}">
+    <input type="hidden" name="format_type" id="format-field" value="{{ form.format_type.value|default_if_none:'txt' }}">
     <div class="editor-wrapper{% if note and note.format_type == "md" %} split-mode{% endif %}" id="editor-wrapper">
-        <textarea name="content" id="editor" class="editor-textarea" placeholder="Start writing your note…">{{ form.content.value|default:note.content|default:'' }}</textarea>
+        <textarea name="content" id="editor" class="editor-textarea" placeholder="Start writing your note…">{{ form.content.value|default_if_none:'' }}</textarea>
         <div id="preview-pane" class="preview-pane{% if note and note.format_type == "md" %}{% else %} hidden{% endif %}"></div>
     </div>
 </form>
