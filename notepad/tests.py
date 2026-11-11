@@ -5,6 +5,7 @@ import json
 from django.urls import reverse
 from .models import Note
 import uuid
+from pathlib import Path
 
 
 class MarkdownPreviewSanitizationTests(TestCase):
@@ -2110,3 +2111,22 @@ class NP020AccessibilityPolishTests(TestCase):
         note = Note.objects.create(title="format-note", content="text", format_type="txt")
         response = self.client.get(reverse("notepad:note_edit", kwargs={"pk": note.pk}))
         self.assertContains(response, "formatSelect.addEventListener('change', () => setDirty(true))")
+
+
+class NP021MobileAndLanReadinessTests(TestCase):
+    def test_mobile_viewport_meta_is_present(self):
+        response = self.client.get(reverse("notepad:note_list"))
+        self.assertContains(response, 'name="viewport"')
+        self.assertContains(response, "width=device-width, initial-scale=1.0")
+
+    def test_mobile_styles_support_dynamic_viewport_and_touch_targets(self):
+        css = (Path(__file__).resolve().parent / "static" / "notepad" / "style.css").read_text()
+        self.assertIn("100dvh", css)
+        self.assertIn("min-height: 44px", css)
+        self.assertIn(".editor-wrapper.split-mode .preview-pane:not(.hidden)", css)
+        self.assertIn("@media (max-width: 380px)", css)
+
+    def test_docker_publishes_app_on_all_host_interfaces(self):
+        compose = (Path(__file__).resolve().parent.parent / "docker-compose.yml").read_text()
+        self.assertIn('"0.0.0.0:8081:8000"', compose)
+        self.assertIn("DJANGO_ALLOWED_HOSTS", compose)
