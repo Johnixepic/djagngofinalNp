@@ -18,7 +18,7 @@ services:
     container_name: notepad_api
     user: "${UID}:${GID}"
     ports:
-      - "8081:8000"
+      - "0.0.0.0:8081:8000"
     volumes:
       - .:/app
     depends_on:
