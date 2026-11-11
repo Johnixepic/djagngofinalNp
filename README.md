@@ -40,6 +40,10 @@ FinalProj/
 └── browser_test.js  # E2E browser tests
 ```
 
+## LAN Access
+
+For phone testing on the same trusted Wi-Fi, run `bash scripts/enable-lan.sh` from the repository root, then `docker compose up -d --force-recreate web`. The helper adds the laptop's current LAN IP to Django's allowed hosts and, when UFW is active, allows TCP port 8081 only from the detected local subnet. Open the printed `http://LAN-IP:8081` address on your phone. PostgreSQL and pgAdmin host ports remain bound to localhost. This app has no login; do not forward port 8081 to the public internet.
+
 ## Quick Start
 
 1. Clone the repository
