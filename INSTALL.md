@@ -93,14 +93,13 @@ docker compose exec web python manage.py migrate
 
 ### 5. Access from a phone or another device on your Wi-Fi
 
-The app listens on the laptop's LAN interface at TCP port 8081. After configuring .env and starting Docker, run this helper from the repository root:
+The app listens on the laptop's LAN interface at TCP port 8081. After configuring .env and starting the database service, run this helper from the repository root:
 
 ```bash
 bash scripts/enable-lan.sh
-docker compose up -d --force-recreate web
 ```
 
-The helper detects the active IPv4 address, adds it to DJANGO_ALLOWED_HOSTS, and (when UFW is active) permits port 8081 only from the detected local subnet. Open the printed http://LAN-IP:8081 address on a phone connected to the same Wi-Fi.
+The helper detects the host's current IPv4 address, passes it to Django through the `DJANGO_LAN_IP` container environment variable, and automatically recreates the Django service. It does not write the address into .env. When UFW is active, it permits port 8081 only from the detected local subnet. Open the printed http://LAN-IP:8081 address on a phone connected to the same Wi-Fi. Run the helper again after changing networks or receiving a new IP address.
 
 The PostgreSQL and pgAdmin host ports are bound to localhost only. This is a single-user app without login; use it only on a trusted private network and never forward port 8081 from your router to the public internet.
 
