@@ -30,6 +30,7 @@ services:
       DJANGO_DEBUG: "${DJANGO_DEBUG:-false}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY before starting Django in deployment}"
       DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,testserver}"
+      DJANGO_LAN_IP: "${DJANGO_LAN_IP:-}"
 
   pgadmin:
     image: dpage/pgadmin4
