@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import ipaddress
 import os
 from pathlib import Path
 
@@ -45,7 +46,7 @@ if not SECRET_KEY:
     else:
         raise ImproperlyConfigured('Set DJANGO_SECRET_KEY when DEBUG is false.')
 
-# Production hosts come from the environment; local development uses an explicit allowlist.
+# Start with the explicitly configured host allowlist.
 _ALLOWED_HOSTS_RAW = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
 if _ALLOWED_HOSTS_RAW:
     ALLOWED_HOSTS = [host.strip() for host in _ALLOWED_HOSTS_RAW.split(',') if host.strip()]
@@ -55,6 +56,19 @@ elif DEBUG:
     ALLOWED_HOSTS = ['*']
 else:
     raise ImproperlyConfigured('Set DJANGO_ALLOWED_HOSTS when DEBUG is false.')
+
+# The LAN helper passes the host machine's current IPv4 address at container startup.
+# Validate it before adding it; never use a wildcard to work around changing addresses.
+_DJANGO_LAN_IP = os.environ.get('DJANGO_LAN_IP', '').strip()
+if _DJANGO_LAN_IP:
+    try:
+        _LAN_ADDRESS = ipaddress.ip_address(_DJANGO_LAN_IP)
+    except ValueError as exc:
+        raise ImproperlyConfigured('DJANGO_LAN_IP must be a valid IPv4 address.') from exc
+    if _LAN_ADDRESS.version != 4:
+        raise ImproperlyConfigured('DJANGO_LAN_IP must be a valid IPv4 address.')
+    if _DJANGO_LAN_IP not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_DJANGO_LAN_IP)
 
 
 # Application definition
