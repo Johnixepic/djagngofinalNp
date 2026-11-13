@@ -2130,3 +2130,15 @@ class NP021MobileAndLanReadinessTests(TestCase):
         compose = (Path(__file__).resolve().parent.parent / "docker-compose.yml").read_text()
         self.assertIn('"0.0.0.0:8081:8000"', compose)
         self.assertIn("DJANGO_ALLOWED_HOSTS", compose)
+
+    def test_docker_passes_dynamic_lan_ip_to_django(self):
+        project_root = Path(__file__).resolve().parent.parent
+        compose = (project_root / "docker-compose.yml").read_text()
+        settings = (project_root / "config" / "settings.py").read_text()
+        helper = (project_root / "scripts" / "enable-lan.sh").read_text()
+
+        self.assertIn('DJANGO_LAN_IP: "${DJANGO_LAN_IP:-}"', compose)
+        self.assertIn("ipaddress.ip_address(_DJANGO_LAN_IP)", settings)
+        self.assertIn('export DJANGO_LAN_IP="$HOST_IP"', helper)
+        self.assertIn("docker compose up -d --force-recreate web", helper)
+        self.assertNotIn('env_path.write_text', helper)
