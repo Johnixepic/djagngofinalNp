@@ -42,7 +42,7 @@ FinalProj/
 
 ## LAN Access
 
-For phone testing on the same trusted Wi-Fi, run `bash scripts/enable-lan.sh` from the repository root, then `docker compose up -d --force-recreate web`. The helper adds the laptop's current LAN IP to Django's allowed hosts and, when UFW is active, allows TCP port 8081 only from the detected local subnet. Open the printed `http://LAN-IP:8081` address on your phone. PostgreSQL and pgAdmin host ports remain bound to localhost. This app has no login; do not forward port 8081 to the public internet.
+For phone testing on the same trusted Wi-Fi, run `bash scripts/enable-lan.sh` from the repository root. The helper detects the laptop's current LAN IPv4, passes it to Django for that container startup, recreates the Django service, and (when UFW is active) allows TCP port 8081 only from the detected local subnet. It does not modify `.env` or accumulate old IP addresses. Open the printed `http://LAN-IP:8081` address on your phone. Run the helper again after reconnecting to a different network or receiving a new IP. PostgreSQL and pgAdmin host ports remain bound to localhost. This app has no login; do not forward port 8081 to the public internet.
 
 ## Quick Start
 
