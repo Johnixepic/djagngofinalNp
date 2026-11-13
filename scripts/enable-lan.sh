@@ -43,7 +43,10 @@ import sys
 
 env_path = Path(".env")
 host_ip = sys.argv[1]
-lines = env_path.read_text().splitlines()
+# Repair a literal escaped newline left by older copies of .env.example.
+raw = env_path.read_text()
+raw = raw.replace(r"\n#", "\n#")
+lines = raw.splitlines()
 key = "DJANGO_ALLOWED_HOSTS"
 for index, line in enumerate(lines):
     if line.strip().startswith(key + "="):
